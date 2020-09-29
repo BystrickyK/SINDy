@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
-
+from equations.LorenzEquation import lorenz_equation_p
 
 class DynamicalSystem():
 
@@ -30,3 +30,12 @@ class DynamicalSystem():
         new_sim_data = np.hstack([t, x.T])
         self.sim_data = np.vstack([self.sim_data, new_sim_data])
         return sol
+
+class LorenzSystem(DynamicalSystem):
+    def __init__(self, x0, dt=0.005, t0=0,
+                 params=None):
+        if params is None:
+            params = {'gamma': 10, 'rho': 28, 'beta': 8. / 3}
+
+        fun = lorenz_equation_p(params)
+        DynamicalSystem.__init__(self, fun, x0, dt, t0)
