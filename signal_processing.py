@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class Signal():
@@ -11,9 +12,10 @@ class Signal():
         x_clean = sim_data[:, 1:]
         self.x_clean = self.state_df(x_clean)
 
-        # DF of the original signal with added white noise
-        x = x_clean + noise_power * np.random.randn(*x_clean.shape)
-        self.x = self.state_df(x)
+        # The DataFrame self.x is calculated from self.x_clean via
+        # the noise_power setter method
+        self.x = None
+        self.noise_power = noise_power
 
         # Number of samples (readings)
         self.samples = self.x.shape[0]
@@ -22,8 +24,18 @@ class Signal():
         # Sampling period
         self.dt = self.t[1]-self.t[0]
 
+    @property
+    def noise_power(self):
+        return self._noise_power
+
+    @noise_power.setter
+    def noise_power(self, noise_power):
+        x = self.x_clean + noise_power * np.random.randn(*self.x_clean.shape)
+        self.x = self.state_df(x)
+        self._noise_power = noise_power
+
     def state_df(self, x):
-        state_str = ['X'+str(i+1) for i in range(x.shape[1])]
+        state_str = ['x'+str(i+1) for i in range(x.shape[1])]
         return pd.DataFrame(
             data=x,
             index=self.t,
@@ -70,6 +82,9 @@ class ProcessedSignal(Signal):
         self.dxdt_exact = None
         self.model = model
         self.exact_derivative()
+
+        self.svd = {}
+        self.compute_svd()
 
     # Calculates the spectral derivative from self.x
     def spectral_derivative(self):
@@ -135,3 +150,51 @@ class ProcessedSignal(Signal):
     def exact_derivative(self):
         dxdt = np.array([*map(self.model, self.x_clean.values)])
         self.dxdt_exact = self.state_df(dxdt)
+
+
+    def plot_dxdt_comparison(self):
+        # Plot analytic and spectral derivatives
+        t = self.t
+        dxdt_exact = self.dxdt_exact.values
+        dxdt_spectral = self.dxdt_spectral.values
+        dxdt_spectral_filtered = self.dxdt_spectral_filtered.values
+        dxdt_findiff = self.dxdt_finitediff.values
+        with plt.style.context('seaborn-colorblind'):
+            fig, axs = plt.subplots(3, 1, sharex=True, tight_layout=True)
+            plt.xlabel('Time t [s]')
+            ylabels = [r'$\.{X}_{' + str(i + 1) + '} [s^{-1}]$' for i in range(self.dims)]
+            for ii, ax in enumerate(axs):
+                ax.plot(t, dxdt_exact[:, ii], 'k', alpha=1, linewidth=2, label='Exact')
+                ax.plot(t, dxdt_spectral[:, ii], '-', color='blue', alpha=0.8, linewidth=2, label='Spectral Cutoff')
+                ax.plot(t, dxdt_findiff[:, ii], '-', color='c', alpha=0.5, label='Forward Finite Difference')
+                ax.plot(t, dxdt_spectral_filtered[:, ii], '-', color='red', alpha=0.8, linewidth=2,
+                        label='Spectral Cutoff Filtered')
+                ax.set_ylabel(ylabels[ii])
+                ax.legend(loc=1)
+
+    def compute_svd(self):
+        u,s,vt = np.linalg.svd(self.x.values.T, full_matrices=False)
+        s = np.diag(s)
+        self.svd['U'] = u
+        self.svd['Sigma'] = s
+        self.svd['V*'] = vt
+
+    def plot_svd(self):
+        fig, axs = plt.subplots(1,2)
+        fig.set_size_inches(10, 6)
+
+        p0 = axs[0].matshow(self.svd['U'], cmap='cividis')
+        plt.colorbar(p0, ax=axs[0])
+        axs[0].set_xticks([*range(0,self.dims)])
+        axs[0].set_xticklabels(['PC'+str(i+1) for i in range(self.dims)])
+        axs[0].set_yticks([*range(0,self.dims)])
+        axs[0].set_yticklabels(['X'+str(i+1) for i in range(self.dims)])
+        axs[0].set_title("Left Singular Vectors\nPrincipal Components")
+
+        p1 = axs[1].matshow(self.svd['Sigma'], cmap='viridis')
+        plt.colorbar(p1, ax=axs[1])
+        axs[1].set_xticks([*range(0,self.dims)])
+        axs[1].set_xticklabels([str(i+1) for i in range(self.dims)])
+        axs[1].set_yticks([*range(0,self.dims)])
+        axs[1].set_yticklabels([str(i+1) for i in range(self.dims)])
+        axs[1].set_title("Singular Values")
