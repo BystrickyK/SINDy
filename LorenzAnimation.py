@@ -7,7 +7,7 @@ from dynamical_systems import LorenzSystem
 
 
 class AnimatedLorenz(LorenzSystem):
-    def __init__(self, x0, t_max, dt=0.005, anim_speed=1, noise_strength=0):
+    def __init__(self, x0, t_max, dt=0.005, anim_speed=1):
         LorenzSystem.__init__(self, x0, dt)
         # Propagate the system t_max seconds into the future
         self.propagate(t_max)
