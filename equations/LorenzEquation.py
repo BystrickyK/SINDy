@@ -11,4 +11,8 @@ def lorenz_equation_p(params=None):
         xd[2] = x[0] * x[1] - params['beta'] * x[2]
         return xd
 
+        #dx1 = g*x2 - g*x1
+        #dx2 = r*x1 - r*x3
+        #dx3 = x1*x2 - b*x3
+
     return lorenz_equation

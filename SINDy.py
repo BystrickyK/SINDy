@@ -1,56 +1,50 @@
-from LorenzAnimation import AnimatedLorenz
-from equations.LorenzEquation import lorenz_equation_p
-import numpy as np
 import matplotlib.pyplot as plt
-from signal_processing import ProcessedSignal
-from function_library import function_library
+import numpy as np
 from sklearn import linear_model
 
-def plot_ksi(ksi, theta, dx):
-    fig, ax = plt.subplots(1,1)
-    fig.set_size_inches(8, 4)
+from LorenzAnimation import AnimatedLorenz
+from dynamical_systems import LorenzSystem
+from equations.LorenzEquation import lorenz_equation_p
+from function_library import poly_library
+from signal_processing import ProcessedSignal
+import time as time
+from utils.regression import seq_thresh_ls
+from utils.visualization import plot_ksi, plot_svd, plot_dxdt_comparison
+from utils.tools import cutoff
 
-    maxabs = np.abs(ksi).max()
-    p = ax.matshow(ksi.T, cmap='PRGn', vmin=-maxabs/5, vmax=maxabs/5)
-    plt.colorbar(p, ax=ax)
-    ax.set_yticks([*range(theta.shape[1])])
-    ax.set_yticklabels(theta.columns)
-    ax.set_ylabel("Candidate functions")
-    ax.set_xticks([*range(dx.shape[1])])
-    ax.set_xticklabels(dx.columns)
-    ax.set_xlabel("dx/dt")
-    ax.set_title("Ksi")
+# Simulate the dynamical system
+tmax = 120
+x0 = [-15, 30, -5]
+sys = LorenzSystem(x0, dt=0.0025)
+sys.propagate(tmax)
 
-tmax = 30
-x0 = [40, -40, -15]
-sys = AnimatedLorenz(x0, tmax, anim_speed=30, dt=0.0025)
-
+# Load the lorenz system function for analytical derivative computation
 lorenz = lorenz_equation_p()
-lorenz_ti = lambda x: lorenz(0, x)
+# Create a ProcessedSignal instance - calculate derivatives, filter out noise etc.
 sig = ProcessedSignal(
     sys.sim_data,
-    noise_power=0.1,
-    spectral_cutoff=[3000, 3000, 3000],
-    kernel='hann',
-    kernel_size=32,
-    model=lorenz_ti)
+    noise_power=0.25,
+    spectral_cutoff=[0.3, 0.3, 0.3],
+    kernel='flattop',
+    kernel_size=64,
+    model=lambda x: lorenz(0, x))
 
-sig.plot_dxdt_comparison()
-sig.plot_svd()
+# Plot derivatives comparison and SVD
+plot_dxdt_comparison(sig)
+plot_svd(sig.svd)
 
+# %%
 # SINDy
+fig, ax = plt.subplots(1, 1, tight_layout=True)
 dx = sig.dxdt_spectral_filtered
-theta = function_library(sig, poly_orders=(1,2,3))
-lasso_model_spectral = linear_model.Lasso(max_iter=25000)
-lasso_model_spectral.fit(theta.values, dx.values)
-ksi_spectral = lasso_model_spectral.coef_
-plot_ksi(ksi_spectral, theta, dx)
-plt.title("Spectral")
-# SINDy
+x = sig.x_filtered
 dx = sig.dxdt_exact
-theta = function_library(sig, poly_orders=(1,2,3))
-lasso_model = linear_model.Lasso(max_iter=25000)
-lasso_model.fit(theta.values, dx.values)
-ksi = lasso_model.coef_
-plot_ksi(ksi, theta, dx)
-plt.title("Exact")
+x = sig.x_clean
+theta = poly_library(x, poly_orders=(1, 2, 3, 4, 5))
+
+dx = cutoff(dx, sig.kernel_size)
+x = cutoff(x, sig.kernel_size)
+theta = cutoff(theta, sig.kernel_size)
+
+ksi_ridge = seq_thresh_ls(theta, dx, n=50, alpha=0, verbose=True, threshold=0.005)
+plot_ksi(ksi_ridge, theta, dx, ax)

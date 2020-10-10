@@ -34,8 +34,7 @@ class DynamicalSystem():
 class LorenzSystem(DynamicalSystem):
     def __init__(self, x0, dt=0.005, t0=0,
                  params=None):
-        if params is None:
-            params = {'gamma': 10, 'rho': 28, 'beta': 8. / 3}
 
-        fun = lorenz_equation_p(params)
+        # Lorenz system with default parameters
+        fun = lorenz_equation_p()
         DynamicalSystem.__init__(self, fun, x0, dt, t0)

@@ -1,7 +1,6 @@
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-import copy
 
 from dynamical_systems import LorenzSystem
 
@@ -67,6 +66,5 @@ class AnimatedLorenz(LorenzSystem):
         # We need to return the updated artist for FuncAnimation to draw..
         # Note that it expects a sequence of artists, thus the trailing comma.
         return self.trajectory, self.point, *[plot[0] for plot in self.plots]
-
 
 # anim = AnimatedLorenz([-10, 15, 30], 15, anim_speed=5, dt=0.005)
