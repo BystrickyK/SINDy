@@ -5,26 +5,47 @@ import matplotlib.pyplot as plt
 
 
 class Signal:
-    def __init__(self, sim_data, noise_power=0):
-        self.t = sim_data[:, 0]
+
+    def __init__(self, data):
+        # First column must be time measurements
+        self.t = data[:, 0]
 
         # Number of dimensions
-        self.dims = (sim_data.shape[1]-1)//2
+        self.dims = data.shape[1] - 1
+
+        # Number of samples (readings)
+        self.samples = data.shape[0]
+
+        # Sampling period
+        self.dt = self.t[1] - self.t[0]
+
+    def create_df(self, data, var_label='x'):
+        var_labels = [var_label + str(i + 1) for i in range(self.dims)]
+        return pd.DataFrame(
+            data=data,
+            index=self.t,
+            columns=var_labels
+        )
+
+
+class StateSignal(Signal):
+    def __init__(self, state_data, noise_power=0):
+        """
+
+        Args:
+            state_data (np.array): First column is time measurements, other columns are state measurements
+            noise_power: How much white noise should be added to the measurements
+        """
+        Signal.__init__(self, state_data)
 
         # DF of the original signal
-        x_clean = sim_data[:, 1:self.dims+1]
-        self.x_clean = self.state_df(x_clean)
+        x_clean = state_data[:, 1:self.dims + 1]
+        self.x_clean = self.create_df(x_clean)
 
         # The DataFrame self.x is calculated from self.x_clean via
         # the noise_power setter method
         self.x = None
         self.noise_power = noise_power
-
-        # Number of samples (readings)
-        self.samples = self.x.shape[0]
-
-        # Sampling period
-        self.dt = self.t[1] - self.t[0]
 
     @property
     def noise_power(self):
@@ -33,27 +54,27 @@ class Signal:
     @noise_power.setter
     def noise_power(self, noise_power):
         x = self.x_clean + noise_power * np.random.randn(*self.x_clean.shape)
-        self.x = self.state_df(x)
+        self.x = self.create_df(x)
         self._noise_power = noise_power
 
-    def state_df(self, x):
-        state_str = ['x' + str(i + 1) for i in range(self.dims)]
-        return pd.DataFrame(
-            data=x,
-            index=self.t,
-            columns=state_str
-        )
+
+class ForcingSignal(Signal):
+    def __init__(self, forcing_data):
+        Signal.__init__(self, forcing_data)
+
+        self.u = forcing_data[:, 1:]
+        self.u = self.create_df(self.u, var_label='u')
 
 
-class ProcessedSignal(Signal):
-    def __init__(self, sim_data,
+class ProcessedSignal(StateSignal):
+    def __init__(self, state_data,
                  spectral_cutoff=None,
                  kernel=None,
                  kernel_size=8,
                  noise_power=0,
                  model=None):
 
-        Signal.__init__(self, sim_data, noise_power)
+        StateSignal.__init__(self, state_data, noise_power)
 
         # How many frequencies should be kept from each side of the spectrum (centered at 0 freq)
         # between (0,0.5)
@@ -112,7 +133,7 @@ class ProcessedSignal(Signal):
         dxdt_hat = 1j * omega * x_hat
         dxdt_hat = np.fft.ifftshift(dxdt_hat, axes=0)
         dxdt = np.real(np.fft.ifft(dxdt_hat, axis=0))
-        return self.state_df(dxdt)
+        return self.create_df(dxdt)
 
     # Convolution filtering
     def convolution_filter(self, x):
@@ -128,24 +149,24 @@ class ProcessedSignal(Signal):
         x_filtered = np.apply_along_axis(
             lambda col: scipy.signal.convolve(col, krnl, mode='same'),
             0, x)
-        return self.state_df(x_filtered)
+        return self.create_df(x_filtered)
 
     # Calculates the finite difference derivative
     def finite_difference_derivative(self, direction='forward'):
         if direction == 'forward':
             dxdt = (np.diff(self.x, axis=0)) / self.dt  # last value is missing
             dxdt = np.vstack((dxdt, dxdt[-1, :]))
-            return self.state_df(dxdt)
+            return self.create_df(dxdt)
         elif direction == 'backward':
             x = np.flip(self.x.values, axis=0)
             dxdt = (-np.diff(x, axis=0)) / self.dt
             dxdt = np.flip(dxdt, axis=0)  # first value is missing
             dxdt = np.vstack((dxdt[0, :], dxdt))
-            return self.state_df(dxdt)
+            return self.create_df(dxdt)
 
     def exact_derivative(self):
         dxdt = np.array([*map(self.model, self.x_clean.values)])
-        return self.state_df(dxdt)
+        return self.create_df(dxdt)
 
     def compute_svd(self):
         u, s, vt = np.linalg.svd(self.x.values.T, full_matrices=False)

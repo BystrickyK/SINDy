@@ -7,7 +7,7 @@ from dynamical_systems import LorenzSystem, DynamicalSystem, LotkaVolterraSystem
 from equations.Lorenz import lorenz_equation
 from equations.LotkaVolterra import lotka_volterra_equation
 from function_library import poly_library
-from signal_processing import ProcessedSignal
+from signal_processing import StateSignal, ForcingSignal, ProcessedSignal
 import time as time
 from utils.regression import seq_thresh_ls
 from utils.visualization import plot_ksi, plot_svd, plot_dxdt_comparison
@@ -20,12 +20,16 @@ from utils.tools import cutoff
 # sys.propagate(tmax)
 sys = LotkaVolterraSystem([2, 4])
 sys.propagate(400)
+# Forcing data
+u = ForcingSignal(sys.sim_data[:, [0, 3, 4]])
 # Load the lorenz system function for analytical derivative computation
 # model = lorenz_equation_p()
 model = lotka_volterra_equation()
+# System dimensionality
+dims = (sys.sim_data.shape[1]-1)//2
 # Create a ProcessedSignal instance - calculate derivatives, filter out noise etc.
 sig = ProcessedSignal(
-    sys.sim_data,
+    sys.sim_data[:, 0:dims+1],
     noise_power=0,
     spectral_cutoff=0.1,
     kernel='flattop',
