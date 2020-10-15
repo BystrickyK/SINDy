@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_ksi(ksi, theta, dx, ax, dim_reduce=True, dim_reduce_tol=0.1):
+def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
     ksi = ksi.T  # fix the ksi output shape
-    if dim_reduce:
-        idx_dim_active = np.apply_along_axis(lambda x: sum(abs(x)) > dim_reduce_tol, 1, ksi)
+    if show_sparse:
+        idx_dim_active = np.apply_along_axis(lambda x: sum(abs(x)) > show_sparse_tol, 1, ksi)
         ksi = ksi[idx_dim_active, :]
         theta = theta.iloc[:, idx_dim_active]
 
@@ -45,8 +45,9 @@ def plot_svd(svd):
     axs[1].set_title("Singular Values")
 
 
+# Plot analytic and spectral derivatives
 def plot_dxdt_comparison(sig):
-    # Plot analytic and spectral derivatives
+    dims = sig.dims
     t = sig.t
     dxdt_exact = sig.dxdt_exact.values
     dxdt_spectral = sig.dxdt_spectral.values
@@ -55,7 +56,7 @@ def plot_dxdt_comparison(sig):
     dxdt_findiff = sig.dxdt_finitediff.values
 
     with plt.style.context('seaborn-colorblind'):
-        fig, axs = plt.subplots(3, 1, sharex='all', tight_layout=True)
+        fig, axs = plt.subplots(dims, 1, sharex='all', tight_layout=True)
         plt.xlabel('Time t [s]')
         ylabels = [r'$\.{X}_{' + str(i + 1) + '} [s^{-1}]$' for i in range(sig.dims)]
         for ii, ax in enumerate(axs):

@@ -8,8 +8,11 @@ class Signal:
     def __init__(self, sim_data, noise_power=0):
         self.t = sim_data[:, 0]
 
+        # Number of dimensions
+        self.dims = (sim_data.shape[1]-1)//2
+
         # DF of the original signal
-        x_clean = sim_data[:, 1:]
+        x_clean = sim_data[:, 1:self.dims+1]
         self.x_clean = self.state_df(x_clean)
 
         # The DataFrame self.x is calculated from self.x_clean via
@@ -19,8 +22,7 @@ class Signal:
 
         # Number of samples (readings)
         self.samples = self.x.shape[0]
-        # Number of dimensions
-        self.dims = self.x.shape[1]
+
         # Sampling period
         self.dt = self.t[1] - self.t[0]
 
@@ -35,7 +37,7 @@ class Signal:
         self._noise_power = noise_power
 
     def state_df(self, x):
-        state_str = ['x' + str(i + 1) for i in range(x.shape[1])]
+        state_str = ['x' + str(i + 1) for i in range(self.dims)]
         return pd.DataFrame(
             data=x,
             index=self.t,
@@ -55,7 +57,7 @@ class ProcessedSignal(Signal):
 
         # How many frequencies should be kept from each side of the spectrum (centered at 0 freq)
         # between (0,0.5)
-        if isinstance(spectral_cutoff, int):
+        if isinstance(spectral_cutoff, float):
             spectral_cutoff = [spectral_cutoff for dim in range(self.dims)]
         self.spectral_cutoff = spectral_cutoff
 
@@ -79,7 +81,7 @@ class ProcessedSignal(Signal):
             self.x_filtered = self.convolution_filter(self.x)
 
         # Calculate exact derivative from the system model (if available)
-        self.model = model
+        self.model = lambda x: model(0, x, np.zeros([self.dims]))  # assume forcing == 0 and TI system
         self.dxdt_exact = self.exact_derivative()
 
         self.svd = self.compute_svd()

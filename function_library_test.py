@@ -6,7 +6,7 @@ sys.propagate(300)
 sig = Signal(sys.sim_data)
 
 # polys = sym_function_library(sig, [1,2])
-poly_lib = function_library(sig.x, [*range(1,5)])
+poly_lib = poly_library(sig.x, [*range(1,5)])
 
 print(poly_lib.head())
 print(poly_lib.columns)

@@ -1,7 +1,7 @@
-
 from sklearn import linear_model
 import time
 import numpy as np
+
 
 def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
     # Pick candidate functions using ridge regression & threshold
@@ -17,12 +17,17 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
 
         for dim in range(0, ndims):
             idx_big = ~idx_small[dim, :]
+            if sum(idx_big) == 0:
+                raise ValueError("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
+                                 "thresholding value or decreasing alpha.")
             model = linear_model.Ridge(alpha=alpha)
             model.fit(A.values[:, idx_big], b.values[:, dim])
             x[dim, idx_big] = model.coef_
 
         if verbose:
             toc = time.time()
-            print('Iteration {} finished\t#\tIteration runtime: {:0.2f}us\t#'.format(ii, (toc-tic)*10**3))
+            print('Iteration {} finished\t#\tIteration runtime: {:0.2f}us\t#'.format(ii, (toc - tic) * 10 ** 3))
+            active_terms = np.sum(~idx_small)
+            print("Number of active terms: {}/{}\n".format(active_terms, np.product(idx_small.shape)))
 
     return x
