@@ -66,7 +66,7 @@ class DynamicalSystem():
         # Pre-allocate the array for simulation solutions
         new_sim_data = np.zeros([t_eval.shape[0], self.dims * 2 + 1])
         new_sim_data[:, 0] = t_eval
-        new_sim_data[0, 0:self.dims] = x0
+        new_sim_data[0, 1:self.dims+1] = x0
 
         # Solve the ODE
         for k, t in enumerate(t_eval[:-1]):
@@ -80,7 +80,7 @@ class DynamicalSystem():
                 else:
                     pass
 
-            # Define the system function with forcing at step k
+            # Define the system function with constant forcing inside step k
             fun = lambda t, x: self.fun(t, x, u_k)
 
             # Propagate the system one step dt

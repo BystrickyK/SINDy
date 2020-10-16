@@ -1,4 +1,4 @@
-from function_library import *
+from function_library_creators import *
 
 sys = LorenzSystem([10, 12, 14])
 sys.propagate(300)

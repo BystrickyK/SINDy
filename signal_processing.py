@@ -6,21 +6,19 @@ import matplotlib.pyplot as plt
 
 class Signal:
 
-    def __init__(self, data):
+    def __init__(self, time_data):
         # First column must be time measurements
-        self.t = data[:, 0]
-
-        # Number of dimensions
-        self.dims = data.shape[1] - 1
+        self.t = time_data[:]
 
         # Number of samples (readings)
-        self.samples = data.shape[0]
+        self.samples = time_data.shape[0]
 
         # Sampling period
         self.dt = self.t[1] - self.t[0]
 
     def create_df(self, data, var_label='x'):
-        var_labels = [var_label + str(i + 1) for i in range(self.dims)]
+        dims = data.shape[1]
+        var_labels = [var_label + '[' + str(i) + ']' for i in range(dims)]
         return pd.DataFrame(
             data=data,
             index=self.t,
@@ -29,17 +27,20 @@ class Signal:
 
 
 class StateSignal(Signal):
-    def __init__(self, state_data, noise_power=0):
+    def __init__(self, time_data, state_data, noise_power=0):
         """
 
         Args:
             state_data (np.array): First column is time measurements, other columns are state measurements
             noise_power: How much white noise should be added to the measurements
         """
-        Signal.__init__(self, state_data)
+        Signal.__init__(self, time_data)
+
+        # Signal dimensionality (number of columns)
+        self.dims = state_data.shape[1]
 
         # DF of the original signal
-        x_clean = state_data[:, 1:self.dims + 1]
+        x_clean = state_data
         self.x_clean = self.create_df(x_clean)
 
         # The DataFrame self.x is calculated from self.x_clean via
@@ -59,22 +60,25 @@ class StateSignal(Signal):
 
 
 class ForcingSignal(Signal):
-    def __init__(self, forcing_data):
-        Signal.__init__(self, forcing_data)
+    def __init__(self, time_data, forcing_data):
+        Signal.__init__(self, time_data)
 
-        self.u = forcing_data[:, 1:]
+        self.dims = forcing_data.shape[1]
+
+        self.u = forcing_data
         self.u = self.create_df(self.u, var_label='u')
 
 
-class ProcessedSignal(StateSignal):
-    def __init__(self, state_data,
+class ProcessedSignal(StateSignal, ForcingSignal):
+    def __init__(self, time_data, state_data, forcing_data,
                  spectral_cutoff=None,
                  kernel=None,
                  kernel_size=8,
                  noise_power=0,
                  model=None):
 
-        StateSignal.__init__(self, state_data, noise_power)
+        StateSignal.__init__(self, time_data, state_data, noise_power)
+        ForcingSignal.__init__(self, time_data, forcing_data)
 
         # How many frequencies should be kept from each side of the spectrum (centered at 0 freq)
         # between (0,0.5)
@@ -102,7 +106,7 @@ class ProcessedSignal(StateSignal):
             self.x_filtered = self.convolution_filter(self.x)
 
         # Calculate exact derivative from the system model (if available)
-        self.model = lambda x: model(0, x, np.zeros([self.dims]))  # assume forcing == 0 and TI system
+        self.model = lambda x, u: model(0, x, u)  # assume time-invariant system
         self.dxdt_exact = self.exact_derivative()
 
         self.svd = self.compute_svd()
@@ -165,7 +169,7 @@ class ProcessedSignal(StateSignal):
             return self.create_df(dxdt)
 
     def exact_derivative(self):
-        dxdt = np.array([*map(self.model, self.x_clean.values)])
+        dxdt = np.array([*map(self.model, self.x_clean.values, self.u.values)])
         return self.create_df(dxdt)
 
     def compute_svd(self):
