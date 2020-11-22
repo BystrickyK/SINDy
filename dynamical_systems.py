@@ -9,9 +9,11 @@ class DynamicalSystem():
         self.fun = fun
         self.dt = dt
 
-        x0 = np.array(x0)
-        self.dims = x0.shape[0]
-        t0 = np.array(t0)
+
+
+        self.x0 = np.array(x0)
+        self.dims = self.x0.shape[0]
+        self.t0 = np.array(t0)
         u0 = np.zeros(self.dims)
         self.sim_data = np.hstack([t0, x0, u0])
         self.sim_data = self.sim_data[np.newaxis, :]
@@ -20,6 +22,15 @@ class DynamicalSystem():
     # Propagate the system 't_plus' seconds into the future from the current state
     # Values are returned after each 'self.df' seconds, but the solver's internal step size is adaptive (RK45)
     def propagate(self, t_plus):
+        """
+        Simulates the dynamic system's natural dynamics (i.e. no external forcing).
+
+        Args:
+            t_plus: How many seconds into the future should the system be propagated
+
+        Returns:
+            success: Is True if the solver finished without complaining.
+        """
         # Define 'x0' as last state and 't0' as last time
         x0 = self.sim_data[-1, 1:self.dims+1]
         t0 = self.sim_data[-1, 0]
@@ -27,8 +38,9 @@ class DynamicalSystem():
         t_span = (t0, t0 + t_plus + self.dt/2)
         t_eval = np.arange(t0, t0 + t_plus + self.dt/10000, self.dt)
         # Define unforced system
-        fun = lambda t, x: self.fun(t, x, np.zeros([self.dims, 1]))
+        fun = lambda t, x: self.fun(t, x, np.zeros([self.dims, 1]).flatten())
         # Solve the ODE
+        # TODO: Cross terms between u and x cause the output to be an array instead of scalar for the dimension
         sol = solve_ivp(fun, t_span, x0, t_eval=t_eval, method=self.solver)
         if not sol.success:
             error_str = "Solver failed.\n{sol_msg}".format(sol_msg=sol.message)
@@ -81,6 +93,9 @@ class DynamicalSystem():
                     pass
 
             # Define the system function with constant forcing inside step k
+            # TODO: might be possible to change model directly (making it time-variant)
+            # TODO: by moving input evaluation and lambda function before the for loop
+            # TODO: 'propagate_forced' runs about 30x slower than unforced 'propagate'
             fun = lambda t, x: self.fun(t, x, u_k)
 
             # Propagate the system one step dt

@@ -11,7 +11,8 @@ class AnimatedLorenz(LorenzSystem):
         # Propagate the system t_max seconds into the future
         self.propagate(t_max)
         self.anim_speed = anim_speed
-        with plt.style.context(['dark_background', 'seaborn-pastel', './images/animfonts.mplstyle']):
+        # 'dark_background',
+        with plt.style.context(['seaborn-dark', './images/animfonts.mplstyle']):
             self.fig = plt.figure(tight_layout=True, figsize=(15, 10))
             self.ax = self.fig.add_subplot(121, projection='3d')
             self.ax.w_xaxis.set_pane_color((0.3, 0.3, 0.3, 0.3))
@@ -26,10 +27,10 @@ class AnimatedLorenz(LorenzSystem):
                                                init_func=self.setup_plot, blit=True,
                                                frames=int(t_max / self.dt / self.anim_speed))
             # plt.show()
-        # self.writer = animation.writers['ffmpeg']
-        # self.writer = self.writer(fps=25, bitrate=-1)
-        # self.ani.save('LorenzSystem2.mp4', writer=self.writer)
-        # print("Rendering complete!\n")
+        self.writer = animation.writers['ffmpeg']
+        self.writer = self.writer(fps=25, bitrate=-1)
+        self.ani.save('LorenzSystem2.mp4', writer=self.writer)
+        print("Rendering complete!\n")
 
     def setup_plot(self):
         # Initialize plot
@@ -67,4 +68,4 @@ class AnimatedLorenz(LorenzSystem):
         # Note that it expects a sequence of artists, thus the trailing comma.
         return self.trajectory, self.point, *[plot[0] for plot in self.plots]
 
-# anim = AnimatedLorenz([-10, 15, 30], 15, anim_speed=5, dt=0.005)
+# anim = AnimatedLorenz([-10, 15, 30], 15, anim_speed=15, dt=0.005)

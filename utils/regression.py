@@ -1,6 +1,8 @@
 from sklearn import linear_model
 import time
 import numpy as np
+import warnings
+
 
 
 def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
@@ -9,6 +11,7 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
     ridge_model.fit(A.values, b.values)
     x = ridge_model.coef_
 
+    valid = True
     ndims = b.shape[1]
     for ii in range(0, n):
         tic = time.time()
@@ -18,7 +21,8 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
         for dim in range(0, ndims):
             idx_big = ~idx_small[dim, :]
             if sum(idx_big) == 0:
-                raise ValueError("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
+                valid = False
+                warnings.warn("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
                                  "thresholding value or decreasing alpha.")
             model = linear_model.Ridge(alpha=alpha)
             model.fit(A.values[:, idx_big], b.values[:, dim])
@@ -30,4 +34,5 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
             active_terms = np.sum(~idx_small)
             print("Number of active terms: {}/{}\n".format(active_terms, np.product(idx_small.shape)))
 
-    return x
+    x = np.array(x)
+    return x, valid

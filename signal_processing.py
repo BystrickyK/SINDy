@@ -87,10 +87,10 @@ class ProcessedSignal(StateSignal, ForcingSignal):
         self.spectral_cutoff = spectral_cutoff
 
         # Spectral derivative
-        self.dxdt_spectral = self.spectral_derivative()  # Fills dxdt_spectral
+        self.dxdt_spectral = self._spectral_derivative()  # Fills dxdt_spectral
 
         # Finite difference derivative
-        self.dxdt_finitediff = self.finite_difference_derivative()  # Fills dxdt_finitediff
+        self.dxdt_finitediff = self._finite_difference_derivative()  # Fills dxdt_finitediff
 
         # Kernel filtering
         self.kernel = kernel  # Which window should be used (from scipy.signals.windows)
@@ -100,19 +100,19 @@ class ProcessedSignal(StateSignal, ForcingSignal):
         self.x_filtered = None
         if self.kernel:
             # Filtered spectral derivative
-            self.dxdt_spectral_filtered = self.convolution_filter(self.dxdt_spectral)
+            self.dxdt_spectral_filtered = self._convolution_filter(self.dxdt_spectral)
 
             # Filtering x
-            self.x_filtered = self.convolution_filter(self.x)
+            self.x_filtered = self._convolution_filter(self.x)
 
         # Calculate exact derivative from the system model (if available)
         self.model = lambda x, u: model(0, x, u)  # assume time-invariant system
-        self.dxdt_exact = self.exact_derivative()
+        self.dxdt_exact = self._exact_derivative()
 
-        self.svd = self.compute_svd()
+        self.svd = self._compute_svd()
 
     # Calculates the spectral derivative from self.x
-    def spectral_derivative(self):
+    def _spectral_derivative(self):
         L = self.t[-1]  # Domain length (~ total time)
         n = self.samples
 
@@ -140,7 +140,7 @@ class ProcessedSignal(StateSignal, ForcingSignal):
         return self.create_df(dxdt)
 
     # Convolution filtering
-    def convolution_filter(self, x):
+    def _convolution_filter(self, x):
         if self.kernel == 'hann':
             krnl = scipy.signal.hann(self.kernel_size)
         elif self.kernel == 'flattop':
@@ -156,7 +156,7 @@ class ProcessedSignal(StateSignal, ForcingSignal):
         return self.create_df(x_filtered)
 
     # Calculates the finite difference derivative
-    def finite_difference_derivative(self, direction='forward'):
+    def _finite_difference_derivative(self, direction='forward'):
         if direction == 'forward':
             dxdt = (np.diff(self.x, axis=0)) / self.dt  # last value is missing
             dxdt = np.vstack((dxdt, dxdt[-1, :]))
@@ -168,11 +168,11 @@ class ProcessedSignal(StateSignal, ForcingSignal):
             dxdt = np.vstack((dxdt[0, :], dxdt))
             return self.create_df(dxdt)
 
-    def exact_derivative(self):
+    def _exact_derivative(self):
         dxdt = np.array([*map(self.model, self.x_clean.values, self.u.values)])
         return self.create_df(dxdt)
 
-    def compute_svd(self):
+    def _compute_svd(self):
         u, s, vt = np.linalg.svd(self.x.values.T, full_matrices=False)
         s = np.diag(s)
         svd = {'U': u, 'Sigma': s, 'V*': vt}
