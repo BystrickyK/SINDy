@@ -1,4 +1,3 @@
-from dynamical_systems import LotkaVolterraSystem
-import numpy as np
+from utils.dynamical_systems import LotkaVolterraSystem
 
 sys = LotkaVolterraSystem([2,2])

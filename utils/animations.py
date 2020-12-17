@@ -2,7 +2,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dynamical_systems import LorenzSystem
+from utils.dynamical_systems import LorenzSystem
 
 
 class AnimatedLorenz(LorenzSystem):

@@ -40,7 +40,6 @@ class DynamicalSystem():
         # Define unforced system
         fun = lambda t, x: self.fun(t, x, np.zeros([self.dims, 1]).flatten())
         # Solve the ODE
-        # TODO: Cross terms between u and x cause the output to be an array instead of scalar for the dimension
         sol = solve_ivp(fun, t_span, x0, t_eval=t_eval, method=self.solver)
         if not sol.success:
             error_str = "Solver failed.\n{sol_msg}".format(sol_msg=sol.message)
@@ -113,12 +112,11 @@ class DynamicalSystem():
 
 
 class LorenzSystem(DynamicalSystem):
-    def __init__(self, x0, dt=0.005, t0=0,
-                 params=None):
+    def __init__(self, x0, dt=0.005, t0=0, solver='RK45'):
 
         # Lorenz system with default parameters
         fun = lorenz_equation()
-        DynamicalSystem.__init__(self, fun, x0, dt, t0, solver='RK45')
+        DynamicalSystem.__init__(self, fun, x0, dt, t0, solver=solver)
 
 class LotkaVolterraSystem(DynamicalSystem):
     def __init__(self, x0, dt=0.005, t0=0):

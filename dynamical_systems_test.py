@@ -1,8 +1,7 @@
-from dynamical_systems import LorenzSystem, LotkaVolterraSystem
+from utils.dynamical_systems import LotkaVolterraSystem
 import numpy as np
-import matplotlib.pyplot as plt
-from signal_processing import StateSignal, ForcingSignal
-from function_library_creators import poly_library
+from utils.signal_processing import StateSignal, ForcingSignal
+from utils.function_libraries import poly_library
 import pandas as pd
 
 sys = LotkaVolterraSystem(x0=[3, 5])

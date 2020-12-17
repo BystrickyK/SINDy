@@ -68,6 +68,11 @@ class ForcingSignal(Signal):
         self.u = forcing_data
         self.u = self.create_df(self.u, var_label='u')
 
+class FullSignal(Signal):
+    def __init__(self, StateSignal, ForcingSignal):
+        Signal.__init__(self, StateSignal.t)
+        self.x = StateSignal.x
+        self.u = ForcingSignal.u
 
 class ProcessedSignal(StateSignal, ForcingSignal):
     def __init__(self, time_data, state_data, forcing_data,

@@ -56,6 +56,8 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
                 if not plot:
                     plt.close(fig)
 
+                return fig
+
             return wrapper
 
         return decorator
@@ -156,10 +158,19 @@ def plot_svd(svd):
     return fig
 
 @save_and_plot(filename='lorentz3d', plot=True)
-def plot_lorentz3d(state_data):
+def plot_lorentz3d(state_data, title=None, **kwargs):
     with plt.style.context({'./images/BystrickyK.mplstyle'}):
         fig = plt.figure(tight_layout=True, figsize=(9, 8))
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_title(title)
+        ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
+        ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
+        ax.set_xlabel(r"$X_1$")
+        ax.set_ylabel(r"$X_2$")
+        ax.set_zlabel(r"$X_3$")
+        return ax
+
+def plot_lorentz3d_ax(state_data, ax):
         ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2])
         ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
         ax.set_xlabel(r"$X_1$")

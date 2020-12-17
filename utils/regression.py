@@ -22,7 +22,7 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
             idx_big = ~idx_small[dim, :]
             if sum(idx_big) == 0:
                 valid = False
-                warnings.warn("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
+                print("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
                                  "thresholding value or decreasing alpha.")
             model = linear_model.Ridge(alpha=alpha)
             model.fit(A.values[:, idx_big], b.values[:, dim])
