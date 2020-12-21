@@ -1,5 +1,6 @@
-from utils.dynamical_systems import LorenzSystem
+from utils.dynamical_systems import LorenzSystem, LotkaVolterraSystem
 from equations.Lorenz import lorenz_equation
+from equations.LotkaVolterra import lotka_volterra_equation
 from utils.function_libraries import poly_library
 from utils.signal_processing import StateSignal, ForcingSignal, ProcessedSignal, FullSignal
 from utils.modeling import RigorousIdentificator
@@ -12,17 +13,17 @@ import pandas as pd
 # Simulate the dynamical system
 dt = 0.0025
 sys = LorenzSystem([18, 18, 18], dt=dt)
-# sys = LotkaVolterraSystem([5, 10], dt=0.0025)
+
 rand_walk1 = RandomWalk(300, dispersion=20, fs=int(1/dt), freq_cutoff=2)
 rand_walk2 = RandomWalk(300, dispersion=25, fs=int(1/dt), freq_cutoff=2)
 rand_walk3 = RandomWalk(300, dispersion=20, fs=int(1/dt), freq_cutoff=2)
 
 sys.propagate(1)
-u0 = lambda t, x: 0.05*(25-x[0]) + rand_walk1(t)
-u1 = lambda t, x: 0.05*(25-x[1]) + rand_walk2(t)
-u2 = lambda t, x: 0.05*(25-x[2]) + rand_walk3(t)
+u0 = lambda t, x: 0.09*(25-x[0]) + rand_walk1(t)
+u1 = lambda t, x: 0.09*(25-x[1]) + rand_walk2(t)
+u2 = lambda t, x: 0.09*(25-x[2]) + rand_walk3(t)
 u_fun = (u0, u1, u2)
-sys.propagate_forced(30, u_fun)
+sys.propagate_forced(10, u_fun)
 
 
 # Time data
@@ -34,7 +35,6 @@ forcing_data = ForcingSignal(time_data, sys.sim_data[:, [4, 5, 6]])
 
 # Load the lorenz system function for analytical derivative computation
 true_model = lorenz_equation()
-# model = lotka_volterra_equation()
 # System dimensionality
 dims = (sys.sim_data.shape[1]-1)//2
 # Create a ProcessedSignal instance - calculate derivatives, filter out noise etc.
@@ -53,18 +53,19 @@ sig = ProcessedSignal(
 # plot_tvector(sig.t, sig.x.values, 'x', title=r'$State \ \mathbf{X}$')
 # plot_tvector(sig.t, sig.u.values, 'u', title=r'$Forcing \ \mathbf{U}$')
 # plot_tvector(sig.t, sig.dxdt_exact.values, '\dot{x}', title=r'$State \ derivative \  \mathbf{\dot{X}}$')
-# plot_dxdt_comparison(sig)
-# plot_svd(sig.svd)
-plot_lorentz3d(sig.x_clean.values, title='Training trajectory')
-# plt.show()
+plot_dxdt_comparison(sig)
+plot_svd(sig.svd)
+plot_lorentz3d(sig.x_filtered.values, title='Filtered training trajectory')
+plot_lorentz3d(sig.x.values, title='Unfiltered training trajectory')
+plt.show()
 # %%
 # SINDy
-dx = sig.dxdt_spectral_filtered
-x = sig.x_filtered
+# dx = sig.dxdt_spectral_filtered
+# x = sig.x_filtered
 # dx = sig.dxdt_spectral
 # x = sig.x
-# dx = sig.dxdt_exact
-# x = sig.x_clean
+dx = sig.dxdt_exact
+x = sig.x_clean
 u = sig.u
 
 xu = pd.concat([x, u], axis=1)
@@ -76,26 +77,6 @@ theta = cutoff(theta, sig.kernel_size*2)
 u = cutoff(forcing_data.u, sig.kernel_size*2)
 
 
-# theta = pd.concat([theta, u], axis=1)
-
-# ksi = seq_thresh_ls(theta, dx, n=70, alpha=0.03, verbose=False, threshold=0.05)
-# KSI = []
-# KSI_thresh = []
-# for thresh in np.linspace(0.01, 0.2, 30):
-#     ksi = seq_thresh_ls(theta, dx, n=5, alpha=0.1, verbose=True, threshold=thresh)
-#     KSI.append(ksi)
-#     KSI_thresh.append(thresh)
-#
-# KSI = np.array(KSI)
-# KSI_thresh = np.array(KSI_thresh)
-
-# plt.bar(np.arange(0, len(KSI_complex)), KSI_complex)
-# fig, ax = plt.subplots(1, 2, tight_layout=True)
-# plot_ksi(ksi, theta, dx, ax[0], show_sparse=True)
-# plot_ksi(ksi2, theta2, dx, ax[1], show_sparse=True)
-# compare_ksi(ksi, theta, ksi2, theta2, dx)
-# plot_ksi_fig(ksi, theta, dx, title=r'$\Xi$')
-# plot_ksi_fig(ksi, theta, dx, title=r'$\Xi$')
 
 # %%
 
@@ -133,15 +114,30 @@ complexities = np.array([mdl['complexity'] for mdl in models])
 aics = np.array([mdl['AIC'] for mdl in models])
 width = 0.4
 #
-fig, ax = plt.subplots(nrows=2, tight_layout=True)
-ax[0].bar(np.arange(len(models))-width/2, np.log(rss), width)
-ax[0].bar(np.arange(len(models))+width/2, complexities, width)
+fig, ax = plt.subplots(nrows=2, tight_layout=True, figsize=(12, 5))
+ax[0].bar(np.arange(len(models))-width/2, np.log(rss), width, label='log(RSS)', color='tab:blue')
+ax02 = ax[0].twinx()
+ax02.bar(np.arange(len(models))+width/2, complexities, width, label='complexity', color='tab:red')
+ax[0].set_xticks(np.arange(len(models)))
+ax[0].set_ylabel("Log(RSS)", color='tab:blue')
+ax[0].tick_params(axis='y', labelcolor='tab:blue')
+ax02.tick_params(axis='y', labelcolor='tab:red')
+ax02.set_ylabel("Complexity", color='tab:red')
 
-ax[1].bar(np.arange(len(models))+width/2, aics, width)
-ax[1].bar(np.arange(len(models))-width/2, bics, width)
+
+ax[1].bar(np.arange(len(models))+width/2, aics, width, label='AIC', color='tab:blue')
+ax12 = ax[1].twinx()
+ax12.bar(np.arange(len(models))-width/2, bics, width, label='BIC', color='tab:red')
+ax[1].set_ylabel("AIC", color='tab:blue')
+ax[1].tick_params(axis='y', labelcolor='tab:blue')
+ax12.tick_params(axis='y', labelcolor='tab:red')
+ax12.set_ylabel("BIC", color='tab:red')
+ax[1].set_xticks(np.arange(len(models)))
+ax[1].set_xlabel("Model")
 #%%
 best_idx = np.argmin(aics)
-selection = models[best_idx]
+# selection = models[best_idx]
+selection = models[2]
 mdl = selection['model']
 cmplx = selection['complexity']
 aic = selection['AIC']
@@ -149,10 +145,7 @@ bic = selection['BIC']
 residuals = selection['residuals']
 
 print(f'Best model: {best_idx}\nComplexity: {cmplx}\tBIC: {bic:.2f}\tAIC: {aic:.2f}')
-#
-# mdl.sim_data.x.plot(subplots=True, title="test")
-# rigorous.ground_truth.x.plot(subplots=True, title="truth")
-#
+
 plot_ksi_fig(mdl.ksi, theta, dx, title=r'$\Xi$')
 
 axt = plot_lorentz3d(rigorous.ground_truth.x.values, title='comparison')

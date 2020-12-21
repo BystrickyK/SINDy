@@ -50,7 +50,7 @@ class ModelSelector:
                               t0=self.truth.t[0],
                               solver=solver)
 
-        with timeout(5):
+        with timeout(3):
             try:
                 if t1 > 0:
                     sys.propagate(t1)
@@ -79,6 +79,7 @@ class ModelSelector:
                 rss = np.sum(np.square(norm_resid))  # Residual sum of squares
                 n = len(residuals)
                 aic = 2*model.complexity + n*np.log(rss/n)
+
                 bic = np.log(n)*model.complexity + n*np.log(rss/n)
 
                 self.evaluation.append({'model': model,
