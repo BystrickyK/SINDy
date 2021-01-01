@@ -165,17 +165,17 @@ def plot_lorentz3d(state_data, title=None, **kwargs):
         ax.set_title(title)
         ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
         ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
-        ax.set_xlabel(r"$X_1$")
-        ax.set_ylabel(r"$X_2$")
-        ax.set_zlabel(r"$X_3$")
+        ax.set_xlabel(r"$x_1$")
+        ax.set_ylabel(r"$x_2$")
+        ax.set_zlabel(r"$x_3$")
         return ax
 
 def plot_lorentz3d_ax(state_data, ax):
         ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2])
         ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
-        ax.set_xlabel(r"$X_1$")
-        ax.set_ylabel(r"$X_2$")
-        ax.set_zlabel(r"$X_3$")
+        ax.set_xlabel(r"$x_1$")
+        ax.set_ylabel(r"$x_2$")
+        ax.set_zlabel(r"$x_3$")
 
 # Plot analytic and spectral derivatives
 @save_and_plot(filename='derivatives', plot=True)

@@ -3,6 +3,7 @@ import numpy as np
 def lorenz_equation(params=None):
     if params is None:
         params = {'gamma': 10, 'rho': 28, 'beta': 8. / 3}
+        # params = {'gamma': 4, 'rho': 40, 'beta': 8}
 
     def lorenz(t, x, u):
         dx = np.zeros(3)
