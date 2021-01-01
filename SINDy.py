@@ -33,6 +33,7 @@ state_data = StateSignal(time_data, sys.sim_data[:, [1, 2, 3]])
 # Forcing data
 forcing_data = ForcingSignal(time_data, sys.sim_data[:, [4, 5, 6]])
 
+#%%
 # Load the lorenz system function for analytical derivative computation
 true_model = lorenz_equation()
 # System dimensionality
@@ -40,10 +41,10 @@ dims = (sys.sim_data.shape[1]-1)//2
 # Create a ProcessedSignal instance - calculate derivatives, filter out noise etc.
 sig = ProcessedSignal(
     time_data, state_data.x.values, forcing_data.u.values,
-    noise_power=0.2,
+    noise_power=0,
     spectral_cutoff=0,
     kernel='flattop',
-    kernel_size=16,
+    kernel_size=80,
     model=true_model
 )
 

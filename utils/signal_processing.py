@@ -158,6 +158,8 @@ class ProcessedSignal(StateSignal, ForcingSignal):
         x_filtered = np.apply_along_axis(
             lambda col: scipy.signal.convolve(col, krnl, mode='same'),
             0, x)
+            # lambda col: scipy.signal.sosfiltfilt(krnl, col, mode='same'),
+            # 0, x)
         return self.create_df(x_filtered)
 
     # Calculates the finite difference derivative
