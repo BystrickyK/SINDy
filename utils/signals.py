@@ -116,4 +116,3 @@ class RandomWalk(CallableSignal):
 # t = t[1:-1]
 # y = [walk(ti) for ti in t]
 # plt.plot(t, y)
-

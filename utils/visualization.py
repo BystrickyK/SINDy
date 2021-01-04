@@ -86,7 +86,8 @@ def plot_tvector(t, X, var_name='x', title=None):
             ylabel_str = rf'$ {var_name}_{ii+1} (t) $'
             ax.set_ylabel(ylabel_str)
         ax.set_xlabel(rf'$ Time \  t \  [s] $')
-    return fig
+        plt.show()
+    # return fig
 
 def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
     ksi = ksi.T  # fix the ksi output shape
