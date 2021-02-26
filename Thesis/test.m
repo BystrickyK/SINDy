@@ -5,9 +5,9 @@ clc;
 
 l_1 = 0.3; l_2 = 0.3; l_3 = 0.3;
 a_1 = 0.1; a_2 = 0.1; a_3 = 0.1;
-m_1 = 3; m_2 = 3; m_3 = 3;
+m_1 = 3; m_2 = 3; m_3 = 30;
 I_1 = 0.3*m_1*a_1^2; I_2 = 0.3*m_2*a_2^2; I_3 = 0.3*m_3*a_3^2;
-b_1 = 0.01; b_2 = 0.005; b_3 = 0.002;
+b_1 = 0.01; b_2 = 0.005; b_3 = 0.05;
 
 params = [m_1, m_2, m_3,...             % pendulum weights
             I_1, I_2, I_3,...           % penndulum moments of inertia around CoMs
@@ -30,8 +30,8 @@ results = array2table([x', y']);
 results.Properties.VariableNames = {'t', 's', 'phi1', 'phi2', 'phi3', 'Ds', 'Dphi1','Dphi2', 'Dphi3'};
 
 %% Plot
-stackedplot(results, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
-grid on
+% stackedplot(results, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
+% grid on
 
 %% Animation
 q = [results.s, results.phi1, results.phi2, results.phi3];
@@ -71,7 +71,7 @@ for k = 1:length(q)
     frames(k) = getframe(gcf);
 end
 
-writerObj = VideoWriter('triplePendulumCart.avi');
+writerObj = VideoWriter('triplePendulumCart_heavy3.avi');
 writerObj.FrameRate = 30;
 
 open(writerObj);
