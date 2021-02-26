@@ -1,4 +1,4 @@
-%% Initialization
+Parameters
 clearvars, clc
 syms m_c m_1 m_2 m_3   % masses
 syms I_1 I_2 I_3 % moments of inertia
@@ -55,10 +55,10 @@ P_2 = [a_2*sin(phi_2) + l_1*sin(phi_1) + s;
 P_3 = [a_3*sin(phi_3) + l_2*sin(phi_2) + l_1*sin(phi_1) + s;
     -a_3*cos(phi_3) - l_2*cos(phi_2) - l_1*cos(phi_1)];         % Pendulum 3
 
-P_c = P_c(t);
-P_1 = P_1(t);
-P_2 = P_2(t);
-P_3 = P_3(t);
+P_c = P_c(t)
+P_1 = P_1(t)
+P_2 = P_2(t)
+P_3 = P_3(t)
 
 assumeAlso(P_c, 'real')
 assumeAlso(P_1, 'real')
@@ -98,14 +98,13 @@ V = g * m_1 * P_1(2) + ...
     g * m_3 * P_3(2);
 
 %% Lagrangian
-L = simplify(T - V);
+L = simplify(T - V)
 
 %% Rayleigh dissipation function R
 R = 0.5 * b_1 * dPhi_1^2 + ...
     0.5 * b_2 * (dPhi_2 - dPhi_1)^2 + ...
     0.5 * b_3 * (dPhi_3 - dPhi_2)^2;
 
-%% Equations of motion
 eqs = sym(zeros(4,1));
 for i = 1:length(q_i)
     eqs(i) = diff( diff(L, dq_i(i)), t) - diff(L, q_i(i)) + diff(R, dq_i(i)) == Tau_i(i);
@@ -113,21 +112,27 @@ end
 
 % Simplification -> Cart acceleration given purely by system input
 syms u real
-eqs(1) = diff(dq_i(1), t) == u;
+eqs(1) = diff(dq_i(1), t) == u
 
-%% Convert EoMs to a system of 1st order state derivative equations
+% syms ddq [4 1] real
+% vars = ddq
+% eqns = subs(eqs, diff(q, t, 2), vars)
+% 
+% sols = solve(eqns, vars, 'Real', true)
+
+% [VF, subs] = odeToVectorField(eqs);
 [VF, state_vars, R] = reduceDifferentialOrder(eqs, q_i);
-[M, F] = massMatrixForm(VF, state_vars);
+[M, F] = massMatrixForm(VF, state_vars)
 assumeAlso(state_vars, 'real')
 f = M\F;
 
-%% Generate state derivative function
+Generate state derivative function
 comment = ['Input form (t, X, u, parameters)',...
     'State vars: ',...
-    join(string(state_vars), '; ')];
+    join(string(state_vars), '; ')]
 
 odeFunction(f, state_vars, u,...
     [m_1, m_2, m_3, I_1, I_2, I_3, a_1, a_2, a_3, ...
     l_1, l_2, l_3, b_1, b_2, b_3], ...
     'File', 'triplePendCart2', ...
-    'Comments', comment);
+    'Comments', comment)
