@@ -67,9 +67,9 @@ V = g * m_1 * tmpP_1(2) + ...
 clearvars tmpP_1 tmpP_2 tmpP_3
 
 %% Lagrangian
-L = simplify(T - V)
+L = simplify(T - V);
 
-Rayleigh dissipation function R
+%% Rayleigh dissipation function R
 R = 0.5 * b_1 * dPhi_1^2 + ...
     0.5 * b_2 * (dPhi_2 - dPhi_1)^2 + ...
     0.5 * b_3 * (dPhi_3 - dPhi_2)^2;
@@ -80,8 +80,8 @@ for i = 1:length(q_i)
 end
 
 % Simplification -> Cart acceleration given purely by system input
-syms u
-eqs(1) = diff(dq_i(1), t) == u
+syms u real
+eqs(1) = diff(dq_i(1), t) == u;
 %% Solution
 % syms ddq [4 1] real
 % vars = ddq
@@ -90,4 +90,6 @@ eqs(1) = diff(dq_i(1), t) == u
 % sols = solve(eqns, vars, 'Real', true)
 
 % VF == system of 1st order ODEs
-[VF, subs] = odeToVectorField(eqs)
+[VF, subs] = odeToVectorField(eqs);
+matlabFunction(VF, 'File', 'triplePendCart');
+writematrix(latex(VF), 'waytoolong.txt');
