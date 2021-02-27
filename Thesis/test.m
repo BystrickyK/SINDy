@@ -19,12 +19,12 @@ odefun = @(t, X)triplePendCart(t, X, 0, params);
 
 %% Solve
 x0 = [0.5, pi, -pi, pi*99/100, 0, 0, 0, 0]; % initial conditions
-tspan = [0 30]; % time span
+tspan = [0 20]; % time span
 
 % Solve the system of ODEs
 sol = ode15s(odefun, tspan, x0);
 
-x = (logspace(0, 1, 1000) - 1) * 3;
+x = (logspace(0, 0.6, 1200) - 1) * 6.6;
 % x = linspace(0, 30, 600);
 y = deval(sol, x);
 results = array2table([x', y']);
@@ -34,7 +34,7 @@ results.Properties.VariableNames = {'t', 's', 'phi1', 'phi2', 'phi3', 'Ds', 'Dph
 % stackedplot(results, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
 % grid on
 
-%% Animation
+%% Define important coordinates and their derivatives
 q = [results.s, results.phi1, results.phi2, results.phi3];
 dq = [results.Ds, results.Dphi1, results.Dphi2, results.Dphi3];
 
@@ -61,6 +61,7 @@ dP_2 = @(q,dq) [dq(1) + a_2*cos(q(3))*dq(3) + l_1*cos(q(2))*dq(2);
 dP_3 = @(q,dq) [dq(1) + a_3*cos(q(4))*dq(4) + l_2*cos(q(3))*dq(3) + l_1*cos(q(2))*dq(2);
                 a_3*sin(q(4))*dq(4) + l_2*sin(q(3))*dq(3) + l_1*sin(q(2))*dq(2)];
 
+%% Calculate kinetic, potential and total energies
 
 T = @(q,dq) (0.5 * m_1 * dP_1(q,dq)' * dP_1(q,dq) + ...
     0.5 * m_2 * dP_2(q,dq)' * dP_2(q,dq) + ...
@@ -82,9 +83,11 @@ TE = [];    % Total
 for k = 1:length(q)
     KE(k) = T(q(k, :),dq(k, :));
     PE(k) = V(q(k, :));
-    TE(k) = KE(end)+PE(end);
+    TE(k) = KE(k)+PE(k);
 end
 
+
+%% Animation
 h = figure();
 a1 = subplot(1,2,1);
 hold on
