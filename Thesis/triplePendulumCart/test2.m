@@ -41,16 +41,16 @@ u_a = 5;      % input power (4)
 
     u(90/t_end*end:end) = 0;
     
-    figure();subplot(121);plot(u,'k');hold on
+%     figure();subplot(121);plot(u,'k');hold on
     u = filter(filt_b, filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs)
-    plot(u,'b');
+%     plot(u,'b');
     
     u = diff(u)/(1/f_s);   % get cart velocity by differentiation!
     u = diff(u)/(1/f_s);   % get cart acceleration == input signal
     
     u(end+1:end+2) = u(end); % extend the input signal to fix the signal length
-    subplot(122);plot(u./9.81,'r');
-    subplot(121);plot(cumsum(cumsum(u))/length(u),'r-.');
+%     subplot(122);plot(u./9.81,'r');
+%     subplot(121);plot(cumsum(cumsum(u))/length(u),'r-.');
     % Create the input signal as a time-dependent function
     u_f = @(t) interp1(u_t, u, t);
 
@@ -155,36 +155,54 @@ end
 %% Animation
 disp("Animating...")
 
-h = figure('Position', [10 10 1200 900]);
+h = figure('Position', [10 10 1500 1500]);
 
-a1 = subplot(1,2,1);
+a1 = subplot(2,2,1);
 grid on
 xlim([-2 2])
 ylim([-2 2])
 pbaspect manual
 hold on
 
-a2 = subplot(3,2,2);
-xlim([0 t_end])
-ylim([min(KE)-10, max(KE)+10])
-ylabel("Kinetic")
-l2 = animatedline(a2);
+a2 = subplot(2,2,3);
+ylabel('Cart acceleration [G]');
+grid on
+xlim(tspan)
+ylim([ min(results.u) max(results.u)])
+l_u = animatedline(a2);
 
-a3 = subplot(3,2,4);
-xlim([0 t_end])
-ylim([min(PE)-10, max(PE)+10])
-ylabel("Potential")
-l3 = animatedline(a3);
+state_vars = results.Properties.VariableNames(2:end-1);
+for i = 1:length(state_vars)
+    var = state_vars{i};
+    ax(i) = subplot(length(state_vars), 2, i*2);
+    ylabel(var);
+    lx(i) = animatedline(ax(i));
+    xlim(tspan);
+%     ylim([ min(results.(var)) max(results.(var))]);
+    grid on
+end
 
-a4 = subplot(3,2,6);
-xlim([0 t_end])
-ylim([min(TE)-10, max(TE)+10])
-ylabel("Total")
-l4 = animatedline(a4);
+% a2 = subplot(3,2,2);
+% xlim([0 t_end])
+% ylim([min(KE)-10, max(KE)+10])
+% ylabel("Kinetic")
+% l2 = animatedline(a2);
+% 
+% a3 = subplot(3,2,4);
+% xlim([0 t_end])
+% ylim([min(PE)-10, max(PE)+10])
+% ylabel("Potential")
+% l3 = animatedline(a3);
+% 
+% a4 = subplot(3,2,6);
+% xlim([0 t_end])
+% ylim([min(TE)-10, max(TE)+10])
+% ylabel("Total")
+% l4 = animatedline(a4);
 
-frames = [getframe(gcf)];
+frames = [getframe(h)];
 
-for k = 1:length(q)
+for k = 1:length(q)/33
     cla(a1)
     
     pc = P_c(q(k, :));
@@ -196,19 +214,23 @@ for k = 1:length(q)
     plot(a1, [pc(1), p1(1)], [pc(2), p1(2)], 'kO-', 'LineWidth', 3)
     plot(a1, [p1(1), p2(1)], [p1(2), p2(2)], 'rO-', 'LineWidth', 3)
     plot(a1, [p2(1), p3(1)], [p2(2), p3(2)], 'bO-', 'LineWidth', 3)
-    plot(a1, [pc(1), pc(1)+u_f(x(k))/20], [pc(2), pc(2)], 'r', 'LineWidth', 2)
-
-    addpoints(l2, x(k), KE(k))
-    addpoints(l3, x(k), PE(k))
-    addpoints(l4, x(k), TE(k))
+    plot(a1, [pc(1), pc(1)+u_f(x(k))/20], [pc(2), pc(2)], 'r', 'LineWidth', 2)  
+    
+    addpoints(l_u, x(k), results.u(k)/g);
+    a2.XLim = [x(k)-12, x(k)+2];
+    for i = 1:length(state_vars)
+       var = state_vars{i};
+       addpoints(lx(i), x(k), results.(var)(k)/g);
+       ax(i).XLim = [x(k)-12, x(k)+2];
+    end
     
     drawnow
-    frames(end+1) = getframe(gcf);
+    frames(end+1) = getframe(h);
     
 end
 
-writerObj = VideoWriter('triplePendulumCart_tmp');
-writerObj.FrameRate = 20;
+writerObj = VideoWriter('triplePendulumCart');
+writerObj.FrameRate = 40;
 
 open(writerObj);
 for k = 2:length(frames)
