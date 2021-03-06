@@ -1,0 +1,4 @@
+X3(t) - dX1(t)
+X4(t) - dX2(t)
+u(t) - dX3(t)
+- sin(X2(t)) - X4(t) - dX4(t) - cos(X2(t))*u(t) - cos(X2(t))^2*dX4(t) - sin(X2(t))^2*dX4(t)

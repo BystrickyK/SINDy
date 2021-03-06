@@ -1,0 +1,4 @@
+X_{3}\left(t\right)-\mathrm{dX}_{1}\left(t\right)=0\\ 
+X_{4}\left(t\right)-\mathrm{dX}_{2}\left(t\right)=0\\ 
+u\left(t\right)-\mathrm{dX}_{3}\left(t\right)=0\\ 
+-\mathrm{dX}_{4}\left(t\right)\,{\cos\left(X_{2}\left(t\right)\right)}^2-u\left(t\right)\,\cos\left(X_{2}\left(t\right)\right)-\mathrm{dX}_{4}\left(t\right)\,{\sin\left(X_{2}\left(t\right)\right)}^2-\sin\left(X_{2}\left(t\right)\right)-X_{4}\left(t\right)-\mathrm{dX}_{4}\left(t\right)=0

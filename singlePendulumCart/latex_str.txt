@@ -1,0 +1,4 @@
+\mathrm{dX}_{1}\left(t\right)=X_{3}\left(t\right)\\ 
+\mathrm{dX}_{2}\left(t\right)=X_{4}\left(t\right)\\ 
+\mathrm{dX}_{3}\left(t\right)=u\left(t\right)\\ 
+\mathrm{dX}_{4}\left(t\right)=-\frac{b_{1}\,X_{4}\left(t\right)+a_{1}\,m_{1}\,\cos\left(X_{2}\left(t\right)\right)\,u\left(t\right)+a_{1}\,g\,m_{1}\,\sin\left(X_{2}\left(t\right)\right)}{m_{1}\,{a_{1}}^2\,{\cos\left(X_{2}\left(t\right)\right)}^2+m_{1}\,{a_{1}}^2\,{\sin\left(X_{2}\left(t\right)\right)}^2+I_{1}}
