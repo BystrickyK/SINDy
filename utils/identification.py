@@ -47,9 +47,10 @@ class PI_Identifier:
         lhs_candidate_inds = set([*range(len(self.theta.columns))])
 
         # Define named tuple form
-        IdentfiedEqn = namedtuple('Eqn', ['lhs', 'rhs', 'complexity'])
+        IdentfiedEqn = namedtuple('Eqn', ['lhs_str', 'rhs_str', 'rhs_sol', 'complexity'])
 
         self.n_models = []
+        self.all_models = []
         for n in range(n_models):
 
             n_start = time.time()
@@ -67,40 +68,42 @@ class PI_Identifier:
                     print(f'\n#{n+1}\nLHS guess:\t\t{lhs.name}')
 
                 # Find sparse solution using STLQ
-                rhs, valid = seq_thresh_ls(A=theta, b=lhs, n=iters, threshold=hyperparameter)
+                rhs, valid = seq_thresh_ls(A=theta, b=lhs, n=iters, alpha=0, threshold=hyperparameter)
 
                 nnz_idx = np.nonzero(rhs)[0]
                 rhs_str = ["{:3f}".format(rhs[i]) + '*' + theta.columns[i] for i in nnz_idx]
                 rhs_str = " + ".join(rhs_str)
 
-                eqn = IdentfiedEqn(lhs, rhs, np.linalg.norm(rhs, 0))
+                eqn = IdentfiedEqn(lhs.name, theta.columns, rhs, np.linalg.norm(rhs, 0))
                 i_end = time.time()
                 j_models.append(eqn)
 
                 if self.verbose:
-                    print('Runtime:\t\t{:0.2f}us\nComplexity:\t\t{}\nRHS:\t\t{}'.format(
+                    print('Runtime:\t\t{:0.2f}ms\nComplexity:\t\t{}\nRHS:\t\t{}'.format(
                         (i_end-i_start)*10**3, eqn.complexity, rhs_str))
 
             n_end = time.time()
 
             complexities = np.array([model.complexity for model in j_models])
             nnz_models = np.greater(complexities, 0)  # nonzero models
-            if nnz_models.sum() > 0:
-                sparsest_sol = np.argmin(complexities[nnz_models])
+            nondense_models = np.less(complexities, theta.shape[1]//2 )
+            valid_models_idx = np.all([nnz_models, nondense_models], axis=0)
+            if valid_models_idx.sum() > 0:
+                sparsest_sol = np.argmin(complexities[valid_models_idx])
             else:
                 sparsest_sol = 0
             sol = j_models[sparsest_sol]
             self.n_models.append(sol)
+            self.all_models.extend(list(np.array(j_models)[valid_models_idx]))
 
             if self.verbose:
-                rhs = sol.rhs
-                lhs = sol.lhs
+                rhs = sol.rhs_sol
+                lhs_str = sol.lhs_str
 
                 nnz_idx = np.nonzero(rhs)[0]
                 rhs_str = ["{:3f}".format(rhs[i]) + '*' + theta.columns[i] for i in nnz_idx]
                 rhs_str = " + ".join(rhs_str)
 
-                lhs_str = lhs.name
 
                 run_info = ("Created model #{i} / {total}\n\t".format(i=n+1, total=n_models) +
                       "Model complexity: {cmplx}\n\t".format(cmplx=sol.complexity) +

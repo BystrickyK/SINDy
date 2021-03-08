@@ -7,9 +7,10 @@ import warnings
 
 def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
     # Pick candidate functions using ridge regression & threshold
-    ridge_model = linear_model.Ridge(alpha=alpha)
-    ridge_model.fit(A.values, b.values)
-    x = ridge_model.coef_
+    # ridge_model = linear_model.Ridge(alpha=alpha)
+    # ridge_model.fit(A.values, b.values)
+    # x = ridge_model.coef_
+    x = np.linalg.lstsq(A, b)[0]
 
     valid = True
     # ndims = b.shape[1]
@@ -25,9 +26,10 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
             # print("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
             #                  "thresholding value.")
         try:
-            model = linear_model.Ridge(alpha=alpha)
-            model.fit(A.values[:, idx_big], b.values)
-            x[idx_big] = model.coef_
+            # model = linear_model.Ridge(alpha=alpha)
+            # model.fit(A.values[:, idx_big], b.values)
+            # x[idx_big] = model.coef_
+            x[idx_big] = np.linalg.lstsq(A.values[:, idx_big], b.values)[0]
         except:
             valid = False
 

@@ -31,6 +31,7 @@ trig_data = trigonometric_library(state_data.iloc[:, 1:dim//2])
 
 #%%
 trig_state_derivative = product_library(trig_data, state_derivative_data)
+acceleration_data = trig_state_derivative
 
 # Function library Theta
 theta = pd.concat([state_data, state_derivative_data,
@@ -50,6 +51,26 @@ plt.show()
 # plt.legend(['x4','dx2'])
 # plt.show()
 
+
 EqnIdentifier = PI_Identifier(theta)
-EqnIdentifier.set_thresh_range(lims=(0.1, 1), n=10)
-EqnIdentifier.create_models(n_models=10, iters=8)
+EqnIdentifier.set_thresh_range(lims=(0.01, 3), n=15)
+EqnIdentifier.create_models(n_models=12, iters=5)
+
+# %%
+models = EqnIdentifier.all_models
+sols = []
+active_terms = []
+for model in models:
+    # 0 -> lhs string; 1 -> rhs string; 2 -> rhs solution; 3 -> complexity
+    lhs_guess_idx = list(theta.columns).index(model[0])
+    full_sol = list(model[2])
+    full_sol.insert(lhs_guess_idx, -1)
+    active_idx = np.array(full_sol)!=0
+    sols.append(np.array(full_sol).round(4))
+    active_terms.append(active_idx)
+
+sol_print = lambda idx: print(f'{" + ".join([str(param) + term for param, term in np.array([*zip(sols[idx], theta.columns)])[active_terms[idx]]])} = 0')
+
+active_terms = np.array(active_terms)
+corr = np.corrcoef(active_terms)
+plt.imshow(corr)
