@@ -66,7 +66,7 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
 
 ####################################################################################
 ####################################################################################
-save_and_plot = set_save_plot_options(folder_name='feedback_clean' ,save=True, plot=False, add_stamp=True)
+save_and_plot = set_save_plot_options(folder_name='images' ,save=True, plot=False, add_stamp=True)
 ####################################################################################
 ####################################################################################
 
@@ -107,14 +107,31 @@ def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
         # plt.colorbar(p, ax=ax)
         ax.set_yticks([*range(min(theta.shape))])
         ax.set_yticklabels(thetastr)
-        ax.yaxis.set_tick_params(rotation=30, labelsize=15)
+        ax.yaxis.set_tick_params(rotation=30, labelsize=12)
         ax.set_xticks([*range(min(dx.shape))])
         ax.set_xticklabels(dxstr)
+        ax.xaxis.set_tick_params(rotation=45, labelsize=12)
         ax.xaxis.set_tick_params(labelsize=15)
         for (col, row), val in np.ndenumerate(ksi):
             ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
+@save_and_plot(filename='corr', stamp=True, plot=True)
+def plot_corr(corr, regressor_names):
+
+    # labelstr = parse_function_strings(regressor_names)
+    # labelstr = parse_function_str_add_dots(regressor_names)
+    labelstr = regressor_names
+
+    fig, ax = plt.subplots(1, 1, figsize=(35, 35), tight_layout=True)
+    with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
+        ax.matshow(corr, cmap='viridis', vmin=-1, vmax=1)
+        ax.set_yticks([*range(min(labelstr.shape))])
+        ax.set_yticklabels(labelstr)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=12)
+        ax.set_xticks([*range(min(labelstr.shape))])
+        ax.set_xticklabels(labelstr)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=12)
 
 @save_and_plot(filename='ksi', stamp=True, plot=True)
 def plot_ksi_fig(ksi, theta, dx, show_sparse=True, title=None):

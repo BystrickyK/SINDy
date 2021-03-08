@@ -82,15 +82,17 @@ x0 = [0, 0, 0, 0, 0, 0, 0, 0]; % initial conditions
 tspan = [0 t_end]; % time span
 
 % Solve the system of ODEs
-sol = ode15s(odefun, tspan, x0);
+sol = ode45(odefun, tspan, x0);
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.025:t_end;
+x = 0:0.005:t_end;
 y = deval(sol, x);
 results = array2table([x', y', u_f(x)']);
 results.Properties.VariableNames = {'t', 's', 'phi1', 'phi2', 'phi3', 'Ds', 'Dphi1','Dphi2', 'Dphi3', 'u'};
 
+savefile = 'triplePendCart.csv'
+writetable(results, savefile)
 %% Plot
 % disp("Stackedplot...")
 % figure()
@@ -203,7 +205,7 @@ end
 
 frames = [getframe(h)];
 
-for k = 1:length(q)/3
+for k = 1:30:length(q)
     cla(a1)
     
     pc = P_c(q(k, :));

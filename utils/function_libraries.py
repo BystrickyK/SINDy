@@ -1,4 +1,4 @@
-from itertools import combinations_with_replacement, chain, product
+from itertools import combinations_with_replacement, chain, product, combinations
 import pandas as pd
 import numpy as np
 
@@ -8,7 +8,25 @@ def sym_sum_library(column_names, multipliers=(-2, -1, 0, 1, 2)):
     multipliers = tuple(multipliers)
     subexpressions = [[(mult,expr) for mult in multipliers] for expr in column_names]
 
-    sums = [*product(*subexpressions)]
+    sums = list([*product(*subexpressions)])
+
+    bad_sums_idx = []
+    for j, sum in enumerate(sums):
+        mults = np.array([int(term[0]) for term in sum])
+        exprs = np.array([term[1] for term in sum])
+
+        # if all multipliers are 0
+        if (np.sum(np.abs(mults)) == 0 or
+                (np.sum(np.abs(mults)) == np.abs(np.sum(mults)))):     # => if all parameter have the same signs
+            # np.count_nonzero(params) == 1 and (np.sum(params) < 0 or np.sum(params) == 2) or
+            # np.all(params < 0) or
+            # np.count_nonzero(params<0) == 2):
+            bad_sums_idx.append(j)
+        else:
+            nonzero_idx = mults!=0
+            sums[j] = [*zip([*mults[nonzero_idx]], [*exprs[nonzero_idx]])]
+
+    sums = np.delete(sums, bad_sums_idx, axis=0)
 
     return sums
 
@@ -51,13 +69,47 @@ def sum_library(x, multipliers=(-2, -1, 0, 1, 2)):
     fun_lib = np.zeros(shape=(samples, len(sym_sums)))
     for col, sym_sum in enumerate(sym_sums):
         for mult, sym_var in sym_sum:
-            fun_lib[:, col] += mult * x[sym_var]
+            fun_lib[:, col] += float(mult) * x[sym_var]
 
     sum_str = [' + '.join([str(mult) + '*' + str(var) for mult,var in subexpr]) for subexpr in sym_sums]
     df = pd.DataFrame(
         data=fun_lib,
         columns=sum_str
     )
+    return df
+
+def trigonometric_library(x):
+    sines = np.sin(x)
+    sines.columns = ['sin(' + col_name + ')' for col_name in x.columns]
+
+    cosines = np.cos(x)
+    cosines.columns = ['cos(' + col_name + ')' for col_name in x.columns]
+
+    df = pd.concat([sines, cosines], axis=1)
+    return df
+
+def product_library(multipliers, multiplicands):
+    samples = multipliers.shape[0]
+    terms = [*product(multipliers, multiplicands)]
+    fun_lib = np.zeros(shape=(samples, len(terms)))
+    for col, term in enumerate(terms):
+        fun_lib[:, col] = multipliers[term[0]] * multiplicands[term[1]]
+
+    column_str = [str(i) + '*' + str(j) for i,j in terms]
+    df = pd.DataFrame(fun_lib)
+    df.columns = column_str
+    return df
+
+def square_library(terms):
+    samples = terms.shape[0]
+    dims = terms.shape[1]
+    fun_lib = np.zeros(shape=(samples, dims))
+    term_str = terms.columns
+    for col, term in enumerate(term_str):
+       fun_lib[:, col] = np.square(terms[term])
+
+    df = pd.DataFrame(fun_lib)
+    df.columns = [str(i) + '*' + str(i) for i in term_str]
     return df
 
 # Returns vectors of values of requested polynomials as a pandas DataFrame
@@ -79,3 +131,13 @@ def poly_library(x, poly_orders=(1, 2)):
         columns=['1'] + ['*'.join(poly) for poly in sym_polys]
     )
     return df
+
+
+def remove_twins(fun_lib):
+    corr = fun_lib.corr()
+    corr_lower_tri = np.tril(corr, k=-1)
+    lib_identity_idx = np.abs(corr_lower_tri) == 1
+    lib_identity_idx = np.array(np.nonzero(lib_identity_idx))[1,:]
+    lib_identity_labels = fun_lib.columns[lib_identity_idx]
+    lib_data_without_identities = fun_lib.drop(lib_identity_labels, axis=1)
+    return lib_data_without_identities, lib_identity_labels

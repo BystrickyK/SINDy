@@ -23,8 +23,8 @@ params = [m_1, m_2,...             % pendulum weights
 disp("Creating input signal...")
 t_end = 100;     % simulation time
 f_s = 100;     % sampling
-f_c = 1.7;        % cutoff (2)
-u_a = 5;      % input power (4)
+f_c = 1;        % cutoff (2)
+u_a = 7;      % input power (4)
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
@@ -34,14 +34,14 @@ u_a = 5;      % input power (4)
     u(u>0.5) = 0.5;
     u(u<(-0.5)) = -0.5;  % ensures that the cart position doesn't go much further than 0.3
     
-    u(end*20/t_end:35/t_end*end) = 0;
-    u(end*35/t_end:37/t_end*end) = -0.5; % cart moves to -0.5
-    u(end*37/t_end:40/t_end*end) = 0.5; % cart moves to 0.5
-    u(end*40/t_end:41/t_end*end) = -0.5; % cart moves to -0.5
-    
-    u(41/90*end:49/90*end) = 0; % cart moves to 0
-
-    u(90/t_end*end:end) = 0;
+%     u(end*20/t_end:35/t_end*end) = 0;
+%     u(end*35/t_end:37/t_end*end) = -0.5; % cart moves to -0.5
+%     u(end*37/t_end:40/t_end*end) = 0.5; % cart moves to 0.5
+%     u(end*40/t_end:41/t_end*end) = -0.5; % cart moves to -0.5
+%     
+%     u(41/90*end:49/90*end) = 0; % cart moves to 0
+% 
+%     u(90/t_end*end:end) = 0;
     
 %     figure();subplot(121);plot(u,'k');hold on
     u = filter(filt_b, filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs)
@@ -88,7 +88,7 @@ sol = ode45(odefun, tspan, x0);
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.025:t_end;
+x = 0:0.002:t_end;
 y = deval(sol, x);
 results = array2table([x', y', u_f(x)']);
 results.Properties.VariableNames = {'t', 's', 'phi1', 'phi2', 'Ds', 'Dphi1','Dphi2', 'u'};
@@ -157,7 +157,7 @@ end
 
 frames = [getframe(h)];
 
-for k = 1:length(q)/3
+for k = 1:20:length(q)
     cla(a1)
     
     pc = P_c(q(k, :));
@@ -178,17 +178,17 @@ for k = 1:length(q)/3
     end
     
     drawnow
-    frames(end+1) = getframe(h);
+%     frames(end+1) = getframe(h);
     
 end
 
-writerObj = VideoWriter('triplePendulumCart');
-writerObj.FrameRate = 40;
-
-open(writerObj);
-for k = 2:length(frames)
-   frame = frames(k);
-   writeVideo(writerObj, frame);
-end
-close(writerObj);
-    
+% writerObj = VideoWriter('triplePendulumCart');
+% writerObj.FrameRate = 40;
+% 
+% open(writerObj);
+% for k = 2:length(frames)
+%    frame = frames(k);
+%    writeVideo(writerObj, frame);
+% end
+% close(writerObj);
+%     

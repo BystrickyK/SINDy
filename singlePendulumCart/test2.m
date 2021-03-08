@@ -57,7 +57,7 @@ toc
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.05:t_end;
+x = 0:0.002:t_end;
 y = deval(sol, x);
 results = array2table([x', y', u_f(x)']);
 results.Properties.VariableNames = {'t', 's', 'phi1', 'Ds', 'Dphi1', 'u'};
@@ -106,55 +106,55 @@ end
 
 %% Animation
 
-% disp("Animating...")
-% 
-% h = figure('Position', [10 10 1200 900]);
-% 
-% a1 = subplot(1,2,1);
-% grid on
-% xlim([-1 1])
-% ylim([-1 1])
-% pbaspect([1 1 1])
-% hold on
-% 
-% a2 = subplot(3,2,2);
-% xlim([0 t_end])
-% ylim([min(KE)-10, max(KE)+10])
-% ylabel("Kinetic")
-% l2 = animatedline(a2);
-% 
-% a3 = subplot(3,2,4);
-% xlim([0 t_end])
-% ylim([min(PE)-10, max(PE)+10])
-% ylabel("Potential")
-% l3 = animatedline(a3);
-% 
-% a4 = subplot(3,2,6);
-% xlim([0 t_end])
-% ylim([min(TE)-10, max(TE)+10])
-% ylabel("Total")
-% l4 = animatedline(a4);
-% 
-% frames = [getframe(gcf)];
-% 
-% for k = 1:length(q)
-%     cla(a1)
-%     
-%     pc = P_c(q(k, :));
-%     p1 = P_1(q(k, :));
-%     
-%     title(a1, x(k))
-%     plot(a1, [pc(1), p1(1)], [pc(2), p1(2)], 'kO-', 'LineWidth', 3)
-%     plot(a1, [pc(1), pc(1)+u_f(x(k))/20], [pc(2), pc(2)], 'r', 'LineWidth', 2)
-% 
-%     addpoints(l2, x(k), KE(k))
-%     addpoints(l3, x(k), PE(k))
-%     addpoints(l4, x(k), TE(k))
-%     
-%     drawnow
+disp("Animating...")
+
+h = figure('Position', [10 10 1200 900]);
+
+a1 = subplot(1,2,1);
+grid on
+xlim([-1 1])
+ylim([-1 1])
+pbaspect([1 1 1])
+hold on
+
+a2 = subplot(3,2,2);
+xlim([0 t_end])
+ylim([min(KE)-10, max(KE)+10])
+ylabel("Kinetic")
+l2 = animatedline(a2);
+
+a3 = subplot(3,2,4);
+xlim([0 t_end])
+ylim([min(PE)-10, max(PE)+10])
+ylabel("Potential")
+l3 = animatedline(a3);
+
+a4 = subplot(3,2,6);
+xlim([0 t_end])
+ylim([min(TE)-10, max(TE)+10])
+ylabel("Total")
+l4 = animatedline(a4);
+
+frames = [getframe(gcf)];
+
+for k = 1:20:length(q)
+    cla(a1)
+    
+    pc = P_c(q(k, :));
+    p1 = P_1(q(k, :));
+    
+    title(a1, x(k))
+    plot(a1, [pc(1), p1(1)], [pc(2), p1(2)], 'kO-', 'LineWidth', 3)
+    plot(a1, [pc(1), pc(1)+u_f(x(k))/20], [pc(2), pc(2)], 'r', 'LineWidth', 2)
+
+    addpoints(l2, x(k), KE(k))
+    addpoints(l3, x(k), PE(k))
+    addpoints(l4, x(k), TE(k))
+    
+    drawnow
 %     frames(end+1) = getframe(gcf);
-%     
-% end
+    
+end
 % 
 % writerObj = VideoWriter('singlePendulumCart');
 % writerObj.FrameRate = 20;

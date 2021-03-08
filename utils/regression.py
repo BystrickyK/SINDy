@@ -12,25 +12,24 @@ def seq_thresh_ls(A, b, threshold=0.5, n=10, alpha=0.1, verbose=False):
     x = ridge_model.coef_
 
     valid = True
-    ndims = b.shape[1]
+    # ndims = b.shape[1]
     for ii in range(0, n):
-        print(".")
         tic = time.time()
         idx_small = np.abs(x) < threshold  # find small coefficients
         x[idx_small] = 0  # and set them to 0
 
-        for dim in range(0, ndims):
-            idx_big = ~idx_small[dim, :]
-            if sum(idx_big) == 0:
-                valid = False
-                print("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
-                                 "thresholding value or decreasing alpha.")
-            try:
-                model = linear_model.Ridge(alpha=alpha)
-                model.fit(A.values[:, idx_big], b.values[:, dim])
-                x[dim, idx_big] = model.coef_
-            except:
-                valid = False
+        # for dim in range(0, ndims):
+        idx_big = ~idx_small
+        if sum(idx_big) == 0:
+            valid = False
+            # print("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
+            #                  "thresholding value.")
+        try:
+            model = linear_model.Ridge(alpha=alpha)
+            model.fit(A.values[:, idx_big], b.values)
+            x[idx_big] = model.coef_
+        except:
+            valid = False
 
         if verbose:
             toc = time.time()

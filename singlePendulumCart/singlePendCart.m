@@ -1,4 +1,4 @@
-function expr = singlePendCart(t,in2,param1,in4)
+function expr = singlePendCart(t,in2,u,in4)
 %SINGLEPENDCART
 %    EXPR = SINGLEPENDCART(T,IN2,PARAM1,IN4)
 
@@ -10,6 +10,7 @@ function expr = singlePendCart(t,in2,param1,in4)
 %s(t); phi_1(t); Dst1(t); Dphi_1t1(t)
 Dphi_1t1 = in2(4,:);
 Dst1 = in2(3,:);
+param1 = u(t);
 param2 = in4(:,1);
 param3 = in4(:,2);
 param4 = in4(:,3);
