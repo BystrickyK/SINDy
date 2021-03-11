@@ -1,16 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from seaborn import color_palette, diverging_palette
 from datetime import datetime
 from functools import wraps
 import os
+from scipy.cluster.hierarchy import dendrogram
 from utils.tools import *
+import time
 
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['mathtext.rm'] = 'cm'
+plt.style.use({'seaborn', './images/BystrickyK.mplstyle'})
 
 
-def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plot=True):
+def set_save_plot_options(save=False,
+                          add_stamp=True, plot=True, format='.svg', dpi=300):
 
     # Move to project root
     # path = os.path.normpath(os.getcwd() + os.sep + os.pardir)
@@ -18,10 +23,10 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
     # Move to images
     path = path + os.sep + 'images'
 
-    file_path = path + os.sep + folder_name
+    file_path = path + os.sep
     if add_stamp:
         now = datetime.now()
-        now = now.strftime("%d-%m-%Y")
+        now = now.strftime("%d-%m-%Y_%H-%M")
         file_path = file_path + '_' + now
 
     if not os.path.exists(file_path):
@@ -29,9 +34,9 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
         try:
             os.mkdir(file_path)
         except OSError:
-            print(f"Creation of the directory {folder_name} failed")
+            print(f"Creation of the directory {file_path} failed")
         else:
-            print(f"Successfully created the directory {folder_name}")
+            print(f"Successfully created the directory {file_path}")
             path = file_path + os.sep
     else:
         print(f"Folder {file_path} already exists")
@@ -47,11 +52,11 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
                 fig = fun(*args, **kwargs)
                 if save:
                     if stamp:
-                        rand_stamp = str(np.random.randint(100000))
-                        save_path = path + filename + '_' + rand_stamp + '.svg'
+                        rand_stamp = str(time.time()).replace('.','_')
+                        save_path = path + rand_stamp + '_' + filename + format
                     else:
-                        save_path = path + filename + '.svg'
-                    plt.savefig(save_path)
+                        save_path = path + filename + format
+                    plt.savefig(save_path, dpi=dpi)
 
                 if not plot:
                     plt.close(fig)
@@ -66,7 +71,8 @@ def set_save_plot_options(save=False, folder_name='default', add_stamp=True, plo
 
 ####################################################################################
 ####################################################################################
-save_and_plot = set_save_plot_options(folder_name='images' ,save=True, plot=False, add_stamp=True)
+save_and_plot = set_save_plot_options(save=True, plot=False,
+                                      add_stamp=True, format='.jpg', dpi=180)
 ####################################################################################
 ####################################################################################
 
@@ -89,6 +95,7 @@ def plot_tvector(t, X, var_name='x', title=None):
         plt.show()
     # return fig
 
+
 def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
     ksi = ksi.T  # fix the ksi output shape
     if show_sparse:
@@ -107,31 +114,115 @@ def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
         # plt.colorbar(p, ax=ax)
         ax.set_yticks([*range(min(theta.shape))])
         ax.set_yticklabels(thetastr)
-        ax.yaxis.set_tick_params(rotation=30, labelsize=12)
+        ax.yaxis.set_tick_params(rotation=30, labelsize=10)
         ax.set_xticks([*range(min(dx.shape))])
         ax.set_xticklabels(dxstr)
-        ax.xaxis.set_tick_params(rotation=45, labelsize=12)
+        ax.xaxis.set_tick_params(rotation=45, labelsize=10)
         ax.xaxis.set_tick_params(labelsize=15)
         for (col, row), val in np.ndenumerate(ksi):
             ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
-@save_and_plot(filename='corr', stamp=True, plot=True)
-def plot_corr(corr, regressor_names):
+@save_and_plot(filename='corr', stamp=True, plot=False)
+def plot_corr(corr, regressor_names, labels=True):
 
     # labelstr = parse_function_strings(regressor_names)
     # labelstr = parse_function_str_add_dots(regressor_names)
     labelstr = regressor_names
 
-    fig, ax = plt.subplots(1, 1, figsize=(35, 35), tight_layout=True)
+    figsize = tuple(np.array(corr.shape) * 0.15 + 5)
+    if figsize[0] > 70:
+        figsize = tuple(np.array(figsize) * 0.25)
+    print(f"Creating correlation matrix plot\nImage size:\t{figsize}")
+
+    fig, ax = plt.subplots(1, 1,
+                           figsize=figsize, tight_layout=True)
     with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
-        ax.matshow(corr, cmap='viridis', vmin=-1, vmax=1)
+        im = ax.matshow(corr, cmap='viridis', vmin=-1, vmax=1)
         ax.set_yticks([*range(min(labelstr.shape))])
         ax.set_yticklabels(labelstr)
-        ax.yaxis.set_tick_params(rotation=0, labelsize=12)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=7)
         ax.set_xticks([*range(min(labelstr.shape))])
         ax.set_xticklabels(labelstr)
-        ax.xaxis.set_tick_params(rotation=90, labelsize=12)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=7)
+        fig.colorbar(im, ax=ax)
+        if labels:
+            for (col, row), val in np.ndenumerate(corr):
+                ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
+                        bbox=dict(boxstyle='round', alpha=0.5, facecolor='white', edgecolor='0.3'))
+
+@save_and_plot(filename='activation_dist', stamp=True, plot=True)
+def plot_activation_dist_mat(dist_mat, lhs_guess_strings, labels=True):
+
+    # labelstr = parse_function_strings(regressor_names)
+    # labelstr = parse_function_str_add_dots(regressor_names)
+    labelstr = enumerate(lhs_guess_strings)
+    labelstr = ['  |  i:'.join([lhs, str(idx)]) for idx,lhs in labelstr]
+    n = len(labelstr)
+
+    figsize = tuple(np.array(dist_mat.shape) * 0.15 + 5)
+    if figsize[0] > 70:
+        figsize = tuple(np.array(figsize) * 0.15)
+        labels = False
+    print(f"Creating activation distance plot\nImage size:\t{figsize}")
+
+
+
+    with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
+        newcolors = mpl.cm.get_cmap('cividis_r', 4)
+        fig, ax = plt.subplots(nrows=1, ncols=1,
+                               tight_layout=True,
+                               figsize=figsize)
+        im = ax.imshow(dist_mat, cmap=newcolors, vmin=3.5, vmax=-0.5)
+        fig.colorbar(im, ax=ax, ticks=[*range(0, 4)])
+        if labels:
+            ax.set_yticks([*range(n)])
+            ax.set_yticklabels(labelstr)
+            ax.yaxis.set_tick_params(rotation=0, labelsize=7)
+            ax.set_xticks([*range(n)])
+            ax.set_xticklabels(labelstr)
+            ax.xaxis.set_tick_params(rotation=90, labelsize=7)
+
+
+@save_and_plot(filename='implicit_sols', stamp=True, plot=True)
+def plot_implicit_sols(sols, lhs_labels, theta_labels,
+                       normalize=True, show_labels=False, axislabels=True):
+    sols = np.array(sols).T
+
+    lhs_labels = enumerate(lhs_labels)
+    lhs_labels = ['  |  i:'.join([lhs, str(idx)]) for idx,lhs in lhs_labels]
+
+    if normalize is True:
+        normalizer = lambda row: row / np.abs(row)[row!=0].min()
+        sols = np.apply_along_axis(normalizer, 1, sols)
+
+
+
+    figsize = tuple(np.array(sols.shape) * 0.18 + 3)
+    if figsize[1] > 70:
+        figsize = np.array(figsize)
+        figsize[1] = figsize[1] * 0.5
+        figsize = tuple(figsize)
+        axislabels = False
+    if show_labels:
+        figsize = tuple(np.array(figsize)+2)
+    print(f"Creating implicit solutions plot\nImage size:\t{figsize}")
+
+    fig, ax = plt.subplots(1, 1,
+                           figsize=figsize, tight_layout=True)
+    with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
+        ax.matshow(sols, cmap='coolwarm', vmin=-0.01, vmax=0.01)
+        if axislabels:
+            ax.set_xticks([*range(sols.shape[1])])
+            ax.set_xticklabels(lhs_labels)
+            ax.xaxis.set_tick_params(rotation=90, labelsize=7)
+            ax.set_yticks([*range(sols.shape[0])])
+            ax.set_yticklabels(theta_labels)
+            ax.yaxis.set_tick_params(rotation=0, labelsize=7)
+        if show_labels:
+            for (col, row), val in np.ndenumerate(sols):
+                ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
+                        bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
 @save_and_plot(filename='ksi', stamp=True, plot=True)
 def plot_ksi_fig(ksi, theta, dx, show_sparse=True, title=None):
@@ -228,4 +319,25 @@ def plot_dxdt_comparison(sig):
             ax.set_ylim(ymin=axmin[ii]*1.1, ymax=axmax[ii]*1.1)
         axs[0].legend(loc=1, bbox_to_anchor=(1.28, 1))
     return fig
+
+def plot_dendrogram(model, **kwargs):
+    # Create linkage matrix and then plot the dendrogram
+
+    # create the counts of samples under each node
+    counts = np.zeros(model.children_.shape[0])
+    n_samples = len(model.labels_)
+    for i, merge in enumerate(model.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+
+    linkage_matrix = np.column_stack([model.children_, model.distances_,
+                                      counts]).astype(float)
+
+    # Plot the corresponding dendrogram
+    dendrogram(linkage_matrix, **kwargs)
 

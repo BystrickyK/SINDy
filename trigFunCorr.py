@@ -9,7 +9,7 @@ import matplotlib
 
 matplotlib.use('Qt5Agg')
 
-filename = './doublePendulumCart/doublePendSimData.csv'
+filename = 'doublePendulumCart/results/simdata.csv'
 sim_data = pd.read_csv(filename)
 
 X = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1], noise_power=0)

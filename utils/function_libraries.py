@@ -17,7 +17,7 @@ def sym_sum_library(column_names, multipliers=(-2, -1, 0, 1, 2)):
 
         # if all multipliers are 0
         if (np.sum(np.abs(mults)) == 0 or
-                (np.sum(np.abs(mults)) == np.abs(np.sum(mults)))):     # => if all parameter have the same signs
+                ((np.sum(np.abs(mults)) == np.abs(np.sum(mults))) and np.count_nonzero(mults)>1)):     # => if all parameter have the same signs
             # np.count_nonzero(params) == 1 and (np.sum(params) < 0 or np.sum(params) == 2) or
             # np.all(params < 0) or
             # np.count_nonzero(params<0) == 2):
