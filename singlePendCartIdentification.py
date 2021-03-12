@@ -20,13 +20,38 @@ filename = dirname + 'simdata.csv'
 
 sim_data = pd.read_csv(filename)
 
-X = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1], noise_power=1)
-dX = StateDerivativeSignal(X)
+Xclean = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1])
+X = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1], relative_noise_power=(0.2, 0.05, 0.2, 0.05))
+SigProc = SignalProcessor(X, kernel='flattop', kernel_size=255)
+
+ax = X.x_clean.plot()
+pd.DataFrame(SigProc.x).plot(ax=ax)
+SigProc.x_filtered.plot(ax=ax)
+(SigProc.x_filtered-Xclean.x).iloc[200:-200].plot(subplots=True)
+
+X_filt = StateSignal(SigProc.t, SigProc.x_filtered)
+
+
+dXnoise = StateDerivativeSignal(X)
+dXclean = StateDerivativeSignal(Xclean)
+dX = StateDerivativeSignal(X_filt)
+
+ax = dXnoise.dx.plot()
+dXclean.dx.plot(ax=ax)
+dX.dx.plot(ax=ax)
+(dXclean.dx - dX.dx).iloc[200:-200].plot(subplots=True)
+
 u = ForcingSignal(sim_data['t'], sim_data.iloc[:, -1])
 
-state_data = X.x
+# state_data = X.x
+state_data = X_filt.x
 state_derivative_data = dX.dx
 input_data = u.u
+
+
+# state_data = Xclean.x
+# state_derivative_data = dXclean.dx
+# input_data = u.u
 
 dim = state_data.shape[1]
 
@@ -47,6 +72,7 @@ theta = pd.concat([state_data, state_derivative_data,
 
 cutoff = 200
 theta = theta.iloc[cutoff:-cutoff, :]
+theta.plot(subplots=True, layout=(3,4))
 
 corr = theta.corr()
 plot_corr(corr, theta.columns)
@@ -59,8 +85,8 @@ plt.show()
 # plt.legend(['x4','dx2'])
 # plt.show()
 
-cachename = dirname + 'singlePendSolutions'
-rewrite = False
+cachename = dirname + 'singlePendSolutionsNoisy0_1'
+rewrite = True
 if os.path.exists(cachename) and not rewrite:
     print("Retrieving solution from cache.")
     with open(cachename, 'rb') as f:

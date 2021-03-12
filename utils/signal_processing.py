@@ -35,12 +35,14 @@ class Signal:
 
 
 class StateSignal(Signal):
-    def __init__(self, time_data, state_data, noise_power=0):
+    def __init__(self, time_data, state_data, relative_noise_power=0):
         """
 
         Args:
             state_data (np.array): First column is time measurements, other columns are state measurements
-            noise_power: How much white noise should be added to the measurements
+            relative_noise_power: How much white noise should be added to the measurements. A relative noise
+                power of 0.1 means that the stdev of the additive white noise for each signal will be 10% of
+                the signal's stdev.
         """
         Signal.__init__(self, time_data)
 
@@ -54,7 +56,7 @@ class StateSignal(Signal):
         # The DataFrame self.x is calculated from self.x_clean via
         # the noise_power setter method
         self.x = None
-        self.noise_power = noise_power
+        self.noise_power = relative_noise_power
 
     @property
     def noise_power(self):
@@ -62,7 +64,9 @@ class StateSignal(Signal):
 
     @noise_power.setter
     def noise_power(self, noise_power):
-        x = self.x_clean + noise_power * np.random.randn(*self.x_clean.shape)
+        state_signal_powers = self.x_clean.std()
+        additive_noise = np.vstack(noise_power * state_signal_powers).T * np.random.randn(*self.x_clean.shape)
+        x = self.x_clean + additive_noise
         self.x = create_df(x)
         self._noise_power = noise_power
 
@@ -79,7 +83,7 @@ class StateDerivativeSignal(Signal):
         self.dims = state_signal.x.shape[1]
 
         # The DataFrame self.dx is calculated via numerical differentiation
-        processed = SignalProcessor(state_signal, kernel='hann', kernel_size=5)
+        processed = SignalProcessor(state_signal, kernel='flattop', kernel_size=9)
         self.dx = processed.dxdt_spectral_filtered
 
 class ForcingSignal(Signal):
