@@ -22,7 +22,7 @@ sim_data = pd.read_csv(filename)
 
 Xclean = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1])
 X = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1], relative_noise_power=(0.2, 0.05, 0.2, 0.05))
-SigProc = SignalProcessor(X, kernel='flattop', kernel_size=255)
+
 
 ax = X.x_clean.plot()
 pd.DataFrame(SigProc.x).plot(ax=ax)

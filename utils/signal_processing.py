@@ -50,12 +50,11 @@ class StateSignal(Signal):
         self.dims = state_data.shape[1]
 
         # DF of the original signal
-        x_clean = state_data
-        self.x_clean = create_df(x_clean)
+        self.values_clean = create_df(state_data)
 
         # The DataFrame self.x is calculated from self.x_clean via
         # the noise_power setter method
-        self.x = None
+        self.values = None
         self.noise_power = relative_noise_power
 
     @property
@@ -64,9 +63,9 @@ class StateSignal(Signal):
 
     @noise_power.setter
     def noise_power(self, noise_power):
-        state_signal_powers = self.x_clean.std()
-        additive_noise = np.vstack(noise_power * state_signal_powers).T * np.random.randn(*self.x_clean.shape)
-        x = self.x_clean + additive_noise
+        state_signal_powers = self.values_clean.std()
+        additive_noise = np.vstack(noise_power * state_signal_powers).T * np.random.randn(*self.values_clean.shape)
+        x = self.values_clean + additive_noise
         self.x = create_df(x)
         self._noise_power = noise_power
 
@@ -83,8 +82,11 @@ class StateDerivativeSignal(Signal):
         self.dims = state_signal.x.shape[1]
 
         # The DataFrame self.dx is calculated via numerical differentiation
-        processed = SignalProcessor(state_signal, kernel='flattop', kernel_size=9)
-        self.dx = processed.dxdt_spectral_filtered
+        if method=='spectral':
+            Differentiator = SpectralDifferentiator()
+            self.values = Differentiator.compute_derivative(state_signal, self.dt)
+            Filter = KernelFilter(kernel='flattop', kernel_size=5)
+            self.values = Filter.filter(self.values, var_label='dx')
 
 class ForcingSignal(Signal):
     def __init__(self, time_data, forcing_data):
@@ -95,56 +97,52 @@ class ForcingSignal(Signal):
         except IndexError:
             self.dims = 1
 
-        self.u = forcing_data
-        self.u = create_df(self.u, var_label='u')
+        self.values = create_df(forcing_data, var_label='u')
 
-class FullSignal(Signal):
-    def __init__(self, StateSignal, ForcingSignal):
-        Signal.__init__(self, StateSignal.t)
-        self.x = StateSignal.x
-        self.u = ForcingSignal.u
-
-class SignalProcessor:
-    def __init__(self, state_data, forcing_data=None,
-                 spectral_cutoff=None,
-                 kernel=None,
-                 kernel_size=8,
-                 model=None):
-
-        self.t = state_data.t
-        self.x = state_data.x.values
-
-        if forcing_data:
-            self.u = forcing_data.values
-
-        self.dims = self.x.shape[1]
-        self.samples = self.x.shape[0]
-        self.dt = self.t[1]
-
-        self.spectral_cutoff = spectral_cutoff
-
+class KernelFilter:
+    def __init__(self, kernel='hann', kernel_size=8):
         self.kernel = kernel
-
         self.kernel_size = kernel_size
 
-        self.dxdt_spectral = self.spectral_derivative()
+    @property
+    def kernel(self):
+        return self.__kernel
 
-        self.dxdt_spectral_filtered = None
-        self.x_filtered = None
-        if self.kernel:
-            # Filtered spectral derivative
-            self.dxdt_spectral_filtered = self.convolution_filter(self.dxdt_spectral, var_label='dx')
 
-            # Filtering x
-            self.x_filtered = self.convolution_filter(self.x, var_label='x')
+    @kernel.setter
+    def kernel(self, kernel):
+        # Kernel filtering
+        self.__kernel = kernel  # Which window should be used (from scipy.signals.windows)
 
-        # Calculate exact derivative from the system model (if available)
-        self.model = model
-        if self.model:
-            self.model = lambda x, u: model(0, x, u)  # assume time-invariant system
-            self.dxdt_exact = self.exact_derivative()
 
-        self.svd = self.compute_svd()
+    @property
+    def kernel_size(self):
+        return self.__kernel_size
+
+
+    @kernel_size.setter
+    def kernel_size(self, kernel_size):
+        self.__kernel_size = kernel_size  # Size of the window
+
+    # Convolution filtering
+    def filter(self, x, var_label='x'):
+        if self.kernel == 'hann':
+            krnl = scipy.signal.hann(self.kernel_size)
+        elif self.kernel == 'flattop':
+            krnl = scipy.signal.flattop(self.kernel_size)
+        else:
+            return
+
+        krnl /= sum(krnl)  # Normalize kernel
+
+        x_filtered = np.apply_along_axis(
+            lambda col: scipy.signal.convolve(col, krnl, mode='same'),
+            0, x)
+        return create_df(x_filtered, var_label=var_label)
+
+class SpectralDifferentiator:
+    def __init__(self, spectral_cutoff=None):
+        self.spectral_cutoff = spectral_cutoff
 
     @property
     def spectral_cutoff(self):
@@ -158,27 +156,15 @@ class SignalProcessor:
             spectral_cutoff = [spectral_cutoff for dim in range(self.dims)]
         self.__spectral_cutoff = spectral_cutoff
 
-    @property
-    def kernel(self):
-        return self.__kernel
-
-    @kernel.setter
-    def kernel(self, kernel):
-        # Kernel filtering
-        self.__kernel = kernel  # Which window should be used (from scipy.signals.windows)
-
-    @property
-    def kernel_size(self):
-        return self.__kernel_size
-
-    @kernel_size.setter
-    def kernel_size(self, kernel_size):
-        self.__kernel_size = kernel_size  # Size of the window
-
     # Calculates the spectral derivative from self.x
-    def spectral_derivative(self):
-        L = self.t.values[-1]  # Domain length (~ total time)
-        n = self.samples
+    def compute_derivative(self, x, dt, var_label='dx'):
+        """
+        x (DataFrame): State measurements
+        dt (Float): Time step size
+        """
+        n = x.shape[0]  # Number of samples
+        dims = x.shape[1]
+        L = n*dt  # Time domain length
 
         # Fourier coefficients
         x_hat = np.fft.fft(self.x, axis=0)
@@ -190,56 +176,57 @@ class SignalProcessor:
 
         if self.spectral_cutoff:
             # Create mask
-            mask = np.zeros([self.samples, self.dims])
+            mask = np.zeros([n, dims])
             for idx, cutoff in enumerate(self.spectral_cutoff):
-                cutoff = self.samples / 2 - cutoff * self.samples
+                cutoff = n / 2 - cutoff * n
                 cutoff = int(cutoff)
-                mask[cutoff: -cutoff, idx] = 1
+                mask[cutoff: -cutoff, idx] = 1  # Keep coeffs between cutoff indices
             # Truncate Fourier coefficients
             x_hat = x_hat * mask
 
         dxdt_hat = 1j * omega * x_hat
         dxdt_hat = np.fft.ifftshift(dxdt_hat, axes=0)
         dxdt = np.real(np.fft.ifft(dxdt_hat, axis=0))
-        return create_df(dxdt, var_label='dx')
+        return create_df(dxdt, var_label=var_label)
 
-    # Convolution filtering
-    def convolution_filter(self, x, var_label='x'):
-        if self.kernel == 'hann':
-            krnl = scipy.signal.hann(self.kernel_size)
-        elif self.kernel == 'flattop':
-            krnl = scipy.signal.flattop(self.kernel_size)
-        else:
-            return
 
-        krnl /= sum(krnl)  # Normalize kernel
 
-        x_filtered = np.apply_along_axis(
-            lambda col: scipy.signal.convolve(col, krnl, mode='same'),
-            0, x)
-            # lambda col: scipy.signal.sosfiltfilt(krnl, col, mode='same'),
-            # 0, x)
-        return create_df(x_filtered, var_label=var_label)
+class FiniteDifferentiator:
+    def __init__(self):
+        """
+        TODO: Class hasn't been tested after code refactoring
+        """
+        pass
 
     # Calculates the finite difference derivative
-    def finite_difference_derivative(self, direction='forward'):
+    def compute_derivative(self, x, dt, var_label='dx', direction='forward'):
+        """
+        x (DataFrame): State measurements
+        dt (Float): Time step size
+        """
         if direction == 'forward':
-            dxdt = (np.diff(self.x, axis=0)) / self.dt  # last value is missing
+            dxdt = (np.diff(x, axis=0)) / dt  # last value is missing
             dxdt = np.vstack((dxdt, dxdt[-1, :]))
             return create_df(dxdt, 'dx')
         elif direction == 'backward':
-            x = np.flip(self.x.values, axis=0)
-            dxdt = (-np.diff(x, axis=0)) / self.dt
+            x = np.flip(x.values, axis=0)
+            dxdt = (-np.diff(x, axis=0)) / dt
             dxdt = np.flip(dxdt, axis=0)  # first value is missing
             dxdt = np.vstack((dxdt[0, :], dxdt))
-            return create_df(dxdt, 'dx')
+            return create_df(dxdt, var_label=var_label)
 
-    def exact_derivative(self):
-        dxdt = np.array([*map(self.model, self.x.values, self.u.values)])
-        return create_df(dxdt, 'dx')
+class ModelDerivative:
+    def __init__(self, model):
+        """
+        TODO: Class hasn't been tested after code refactoring
+        """
+        self.model = lambda x, u: model(0, x, u)  # assume time-invariant system
 
-    def compute_svd(self):
-        u, s, vt = np.linalg.svd(self.x, full_matrices=False)
-        s = np.diag(s)
-        svd = {'U': u, 'Sigma': s, 'V*': vt}
-        return svd
+    def exact_derivative(self, x, u, var_label='dx'):
+        """
+        x (DataFrame): State measurements
+        u (DataFrame): System inputs
+        """
+        dxdt = np.array([*map(self.model, x.values, u.values)])
+        return create_df(dxdt, var_label=var_label)
+
