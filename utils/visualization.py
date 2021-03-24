@@ -185,18 +185,22 @@ def plot_activation_dist_mat(dist_mat, lhs_guess_strings, labels=True):
 
 
 @save_and_plot(filename='implicit_sols', stamp=True, plot=True)
-def plot_implicit_sols(sols, lhs_labels, theta_labels,
-                       normalize=True, show_labels=False, axislabels=True):
+def plot_implicit_sols(models, theta_labels,
+                       show_labels=False, axislabels=True):
+
+    sols = np.vstack(models['sol'].values)
     sols = np.array(sols).T
 
-    lhs_labels = enumerate(lhs_labels)
-    lhs_labels = ['  |  i:'.join([lhs, str(idx)]) for idx,lhs in lhs_labels]
+    theta_active = np.vstack(models['active'].values).any(axis=0)
+    theta_labels = theta_labels[theta_active]
+    sols = sols[theta_active, :]
 
-    if normalize is True:
-        normalizer = lambda row: row / np.abs(row)[row!=0].min()
-        sols = np.apply_along_axis(normalizer, 1, sols)
+    fits = models['fit']
 
-
+    lhs_labels = models['lhs'].values
+    indices = range(len(lhs_labels))
+    fit_str = [str(np.round(fit,4)) for fit in fits]
+    lhs_labels = [' | '.join([lhs, fit, str(idx)]) for idx,fit,lhs in zip(indices, fit_str, lhs_labels)]
 
     figsize = tuple(np.array(sols.shape) * 0.18 + 3)
     if figsize[1] > 70:
@@ -215,13 +219,13 @@ def plot_implicit_sols(sols, lhs_labels, theta_labels,
         if axislabels:
             ax.set_xticks([*range(sols.shape[1])])
             ax.set_xticklabels(lhs_labels)
-            ax.xaxis.set_tick_params(rotation=90, labelsize=7)
-            ax.set_yticks([*range(sols.shape[0])])
+            ax.xaxis.set_tick_params(rotation=90, labelsize=10)
+            ax.set_yticks([*range(len(theta_labels))])
             ax.set_yticklabels(theta_labels)
-            ax.yaxis.set_tick_params(rotation=0, labelsize=7)
+            ax.yaxis.set_tick_params(rotation=0, labelsize=10)
         if show_labels:
             for (col, row), val in np.ndenumerate(sols):
-                ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
+                ax.text(row, col, '{:0.3f}'.format(val), ha='center', va='center',
                         bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
 @save_and_plot(filename='ksi', stamp=True, plot=True)

@@ -1,4 +1,4 @@
-dX1(t) == X3(t)
-dX2(t) == X4(t)
-dX3(t) == u(t)
+dX1(t) == X3(t)\\
+dX2(t) == X4(t)\\
+dX3(t) == u(t)\\
 dX4(t) == -(b_1*X4(t) + a_1*m_1*cos(X2(t))*u(t) + a_1*g*m_1*sin(X2(t)))/(I_1 + a_1^2*m_1*cos(X2(t))^2 + a_1^2*m_1*sin(X2(t))^2)

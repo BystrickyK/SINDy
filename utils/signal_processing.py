@@ -13,7 +13,7 @@ def create_df(data, var_label='x'):
     df = pd.DataFrame(data)
 
     if dims > 1:
-        var_labels = [var_label + '[' + str(i+1) + ']' for i in range(dims)]
+        var_labels = [var_label + '_' + str(i+1) for i in range(dims)]
         df.columns = var_labels
 
     return df
@@ -21,21 +21,12 @@ def create_df(data, var_label='x'):
 
 class Signal:
 
-    def __init__(self, time_data):
-        # First column must be time measurements
-        self.t = time_data[:]
-
-        # Number of samples (readings)
-        self.samples = time_data.shape[0]
-
-        # Sampling period
-        self.dt = self.t[1] - self.t[0]
-
-
+    def __init__(self, dt):
+        self.dt = dt
 
 
 class StateSignal(Signal):
-    def __init__(self, time_data, state_data, relative_noise_power=0):
+    def __init__(self, state_data, dt, relative_noise_power=0):
         """
 
         Args:
@@ -44,7 +35,7 @@ class StateSignal(Signal):
                 power of 0.1 means that the stdev of the additive white noise for each signal will be 10% of
                 the signal's stdev.
         """
-        Signal.__init__(self, time_data)
+        Signal.__init__(self, dt)
 
         # Signal dimensionality (number of columns)
         self.dims = state_data.shape[1]
@@ -66,7 +57,7 @@ class StateSignal(Signal):
         state_signal_powers = self.values_clean.std()
         additive_noise = np.vstack(noise_power * state_signal_powers).T * np.random.randn(*self.values_clean.shape)
         x = self.values_clean + additive_noise
-        self.x = create_df(x)
+        self.values = create_df(x)
         self._noise_power = noise_power
 
 class StateDerivativeSignal(Signal):
@@ -76,21 +67,21 @@ class StateDerivativeSignal(Signal):
         Args:
             state_data (np.array): First column is time measurements, other columns are state measurements
         """
-        Signal.__init__(self, state_signal.t)
+        Signal.__init__(self, state_signal.dt)
 
         # Signal dimensionality (number of columns)
-        self.dims = state_signal.x.shape[1]
+        self.dims = state_signal.values.shape[1]
 
         # The DataFrame self.dx is calculated via numerical differentiation
         if method=='spectral':
             Differentiator = SpectralDifferentiator()
-            self.values = Differentiator.compute_derivative(state_signal, self.dt)
-            Filter = KernelFilter(kernel='flattop', kernel_size=5)
+            self.values = Differentiator.compute_derivative(state_signal.values, self.dt)
+            Filter = KernelFilter(kernel='flattop', kernel_size=11)
             self.values = Filter.filter(self.values, var_label='dx')
 
 class ForcingSignal(Signal):
-    def __init__(self, time_data, forcing_data):
-        Signal.__init__(self, time_data)
+    def __init__(self, forcing_data, dt):
+        Signal.__init__(self, dt)
 
         try:
             self.dims = forcing_data.shape[1]
@@ -167,7 +158,7 @@ class SpectralDifferentiator:
         L = n*dt  # Time domain length
 
         # Fourier coefficients
-        x_hat = np.fft.fft(self.x, axis=0)
+        x_hat = np.fft.fft(x, axis=0)
         x_hat = np.fft.fftshift(x_hat, axes=0)
 
         # Fourier frequencies

@@ -4,29 +4,42 @@ from utils.function_libraries import *
 from utils.signal_processing import *
 from utils.identification import PI_Identifier
 from utils.visualization import *
-from scipy.spatial import distance_matrix
+from utils.solution_processing import *
 import matplotlib
 import pickle
 import os
-from sklearn.cluster import AgglomerativeClustering
-from collections import Counter
+from decimal import Decimal
+
 
 matplotlib.use('Qt5Agg')
 
 dirname = '.' + os.sep + 'doublePendulumCart' + os.sep + 'results' + os.sep
-filename = dirname + 'simdata.csv'
+filename = dirname + 'simdata2.csv'
+
 sim_data = pd.read_csv(filename)
+dt = sim_data.iloc[1, 0] - sim_data.iloc[0, 0]
 
-X = StateSignal(sim_data['t'], sim_data.iloc[:, 1:-1], noise_power=0)
-dX = StateDerivativeSignal(X)
-u = ForcingSignal(sim_data['t'], sim_data.iloc[:, -1])
+Filter = KernelFilter(kernel='hann', kernel_size=31)
+X = StateSignal(sim_data.iloc[:, 1:-1], dt=dt, relative_noise_power=0.01)
+# X = Filter.filter(X.values, 'x')  # Noisy data after filtering
+X = X.values_clean  # Use clean data
 
-state_data = X.x
-state_derivative_data = dX.dx
-input_data = u.u
+X = StateSignal(X, dt)
+DX = StateDerivativeSignal(X, method='spectral')
+u = ForcingSignal(sim_data.iloc[:, -1], dt)
+
+# state_data = X.x
+state_data = X.values
+state_derivative_data = DX.values
+input_data = u.values
+
+# Resample, take only every n-th element
+n = 3
+state_data = state_data.iloc[::n, :].reset_index().drop('index', axis=1)
+state_derivative_data = state_derivative_data.iloc[::n, :].reset_index().drop('index', axis=1)
+input_data = input_data.iloc[::n].reset_index().drop('index', axis=1)
 
 dim = state_data.shape[1]
-
 # %%
 # Build library with sums of angles (state vars 2 and 3) and its sines/cosines
 angle_sums = sum_library(state_data.iloc[:, 1:dim // 2], (-2, -1, 0, 1, 2))
@@ -54,11 +67,21 @@ cutoff = 200
 theta = theta.iloc[cutoff:-cutoff, :]
 theta = theta.astype('float32')
 
+# cols = ['sin(2*x_2 + -1*x_3)', 'sin(1*x_3)',
+#         'x_5', 'x_6', 'dx_6', 'cos(2*x_2 + -2*x_3)*dx_6',
+#         'sin(1*x_2 + -1*x_3)*x_5*x_5', 'cos(2*x_2 + -1*x_3)*dx_4',
+#         'cos(1*x_3)*dx_4', 'sin(2*x_2 + -2*x_3)*x_6*x_6',
+#         'cos(1*x_2 + -1*x_3)*x_5', 'cos(1*x_2 + -1*x_3)*x_6']
+# theta = theta.loc[:, cols]
+
+# Identify equation for dx_6
+idx = np.array([('dx_5' in col) for col in theta.columns]) # Find equations with dx_5
+theta = theta.loc[:, ~idx]
 
 corrmat = theta.corr()
 plot_corr(corrmat, theta.columns, labels=False)
 
-cachename = dirname + 'doublePendSolutions2'
+cachename = dirname + 'doublePendSolutions_dX6_EnergyThreshErrorWeighted1x'
 rewrite = False
 if os.path.exists(cachename) and not rewrite:
     print("Retrieving solution from cache.")
@@ -67,80 +90,94 @@ if os.path.exists(cachename) and not rewrite:
 else:
     print("No solution in cache, calculating solution from scratch.")
     EqnIdentifier = PI_Identifier(theta)
-    EqnIdentifier.set_thresh_range(lims=(0.0001, 1), n=20)
-    EqnIdentifier.create_models(n_models=theta.shape[1], iters=8, shuffle=False)
+    EqnIdentifier.set_thresh_range(lims=(0.00001, 0.3), n=5)
+    EqnIdentifier.create_models(n_models=theta.shape[1], iters=10, shuffle=False)
     models = EqnIdentifier.all_models
     with open(cachename, 'wb') as f:
         pickle.dump(models, f)
 
-# Remove duplicate models
-sols = []
-active = []
-lhs_guess_str = []
-residuals = []
-model_hashes = []
-for model in models:
-    # 0 -> lhs string; 1 -> rhs string; 2 -> rhs solution; 3 -> complexity
-    model_hash = hash(str(model[0]) + str(model[2]))
-    if model_hash not in model_hashes:
-        lhs_guess_idx = list(theta.columns).index(model[0])
-        full_sol = list(model[2])
-        full_sol.insert(lhs_guess_idx, -1)
-        active_regressors = np.array(full_sol) != 0
-        sols.append(full_sol)
-        active.append(active_regressors)
-        lhs_guess_str.append(model[0])
-        residuals.append(model[4])
-        model_hashes.append(model_hash)
-    else:
-        pass
-models = pd.DataFrame([*zip(lhs_guess_str, sols, active, residuals)])
-models.columns = ['lhs', 'sol', 'active', 'ssr']
 
-# sol_print = lambda idx: print('{}\n = 0'.format(" + \n".join([str(param) + term for param, term in np.array([*zip(sols[idx].round(5), theta.columns)])[active[idx]]])))
+#%% Remove duplicate models
+models = unique_models(models, theta.columns)
 
-sols = np.array(sols)
-dist = distance_matrix(sols!=0, sols!=0, p=1)
-models['dist'] = dist.tolist()
-plot_activation_dist_mat(dist, lhs_guess_str)
-plot_implicit_sols(sols, lhs_guess_str, theta.columns, normalize=False)
+#%% Visualize the solutions -> calculate and plot activation distance matrix
+# and plot the matrix of implicit solutions
+dist = distance_matrix(models, plot=False)
+# plot_implicit_sols(models, theta.columns)
+#%% Look for consistent models by finding clusters in the term activation space
+models = consistent_models(models, dist,
+                           min_cluster_size=2)
 
-# Find consistent implicit models by finding 0s on the lower triangular distance matrix
-dist_lt = np.tril(dist+100, -1)-100
-idx_full = np.array(np.where(dist_lt==0))
-idx = list(set(np.reshape(idx_full, -1)))
+# gsols = np.vstack(models.sol.values)
+# theta_terms_idx = np.apply_along_axis(lambda col: np.any(col), 0, gsols)
+# gsols = gsols[:, theta_terms_idx]
+# glhs_guess_str = models.lhs.values
 
-# Filter models for consistent models and plot
-gsols = sols[idx]
-theta_terms_idx = np.apply_along_axis(lambda col: np.any(col), 0, gsols)
-gsols = gsols[:, theta_terms_idx]
-glhs_guess_str = np.array(lhs_guess_str)[idx]
-gdist = distance_matrix(gsols!=0, gsols!=0, p=1)
-plot_activation_dist_mat(gdist, glhs_guess_str)
-plot_implicit_sols(gsols, glhs_guess_str, theta.columns[theta_terms_idx], normalize=False)
+plot_implicit_sols(models, theta.columns, show_labels=False)
 
-clustering = AgglomerativeClustering(n_clusters=None, affinity='precomputed', linkage='average',
-                                   compute_full_tree=True, distance_threshold=1).fit(dist)
-# Cluster the models according to the activation distance
-# plot_dendrogram(clustering)
-# plt.show()
+#%% Decompose one of the models
+choice = 3
+model = models.iloc[choice, :]
 
-labels = clustering.labels_
-models['label'] = labels
+active_terms = theta.iloc[:, model['active']].values
+term_labels = theta.columns[model['active']]
+parameters = np.array(model['sol'])[model['active']]
+signals = parameters*active_terms
+solution_string = ' + \n'.join(['$' + str(round(par,3)) + '\;' + term + '$' for par,term in zip(parameters, term_labels)]) + '\n$= 0$'
 
-label_counter = Counter(labels)
-drop_idx = np.array([label_counter[lbl]<5 for lbl in models.label])
-drop_idx = np.argwhere(drop_idx)[:, 0]
-models.drop(drop_idx, axis=0, inplace=True)
-models.sort_values('label', axis=0, inplace=True)
 
-tmp = np.vstack(models.active.values)
-gdist = distance_matrix(tmp, tmp, p=1)
-gsols = np.vstack(models.sol.values)
-theta_terms_idx = np.apply_along_axis(lambda col: np.any(col), 0, gsols)
-gsols = gsols[:, theta_terms_idx]
-glhs_guess_str = models.lhs.values
+fig, ax = plt.subplots(nrows=2, ncols=2, tight_layout=True)
+ax = np.reshape(ax, [-1, ])
+ax[0].plot(signals)
+ax[0].legend(term_labels, borderpad=0.5, frameon=True, fancybox=True, framealpha=0.7)
+ax[0].set_title(r'Model terms')
 
-plot_activation_dist_mat(gdist, glhs_guess_str)
-plot_implicit_sols(gsols, glhs_guess_str, theta.columns[theta_terms_idx], normalize=False)
+residuals_sq = np.sum(np.square(signals), axis=1)
+ax[1].plot(residuals_sq)
+ax[1].set_title(rf'Sum of squares of residuals: {Decimal(np.sum(residuals_sq)):.3E}' +
+                '\nSquares of residuals')
 
+term_energy = np.sum(np.square(signals), axis=0)
+ax[2].bar(range(len(parameters)), term_energy,
+          tick_label=term_labels)
+ax[2].set_title(rf'Term energies')
+ax[2].xaxis.set_tick_params(rotation=90)
+
+ax[3].grid(False)
+ax[3].set_xticklabels([])
+ax[3].set_yticklabels([])
+ax[3].text(0.2, -0.2, rf'{solution_string}', fontsize=12)
+
+plt.show()
+
+#%%
+high_energy_idx = term_energy > 0.05*term_energy.max()
+
+active_terms = active_terms[:, high_energy_idx]
+term_labels = term_labels[high_energy_idx]
+parameters = parameters[high_energy_idx]
+signals = parameters*active_terms
+solution_string = ' + \n'.join(['$' + str(round(par,3)) + '\;' + term + '$' for par,term in zip(parameters, term_labels)]) + '\n$= 0$'
+
+
+fig, ax = plt.subplots(nrows=2, ncols=2, tight_layout=True)
+ax = np.reshape(ax, [-1, ])
+ax[0].plot(signals)
+ax[0].legend(term_labels, borderpad=0.5, frameon=True, fancybox=True, framealpha=0.7)
+ax[0].set_title(r'Model terms')
+
+residuals_sq = np.sum(np.square(signals), axis=1)
+ax[1].plot(residuals_sq)
+ax[1].set_title(rf'Sum of squares of residuals: {Decimal(np.sum(residuals_sq)):.3E}' +
+                '\nSquares of residuals')
+
+term_energy = np.sum(np.square(signals), axis=0)
+ax[2].bar(range(len(parameters)), term_energy,
+          tick_label=term_labels)
+ax[2].set_title(rf'Term energies')
+ax[2].xaxis.set_tick_params(rotation=90)
+
+ax[3].grid(False)
+ax[3].set_xticklabels([])
+ax[3].set_yticklabels([])
+ax[3].text(0.2, -0.2, rf'{solution_string}', fontsize=12)

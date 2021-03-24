@@ -21,16 +21,20 @@ params = [m_1, m_2,...             % pendulum weights
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 100;     % simulation time
+t_end = 120;     % simulation time
 f_s = 100;     % sampling
-f_c = 1;        % cutoff (2)
-u_a = 7;      % input power (4)
+f_c = 2;        % cutoff (2)
+u_a = 4;      % input power (4)
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
     u_t = 0:(1/f_s):t_end;
     u = u_a * (rand(length(u_t), 1) - 0.5);
     u = filter(filt_b, filt_a, u);  % defines the cart position!
+    
+    dampen = linspace(0,1,length(u))';
+    u = u .* dampen;
+    
     u(u>0.5) = 0.5;
     u(u<(-0.5)) = -0.5;  % ensures that the cart position doesn't go much further than 0.3
     
@@ -88,11 +92,11 @@ sol = ode45(odefun, tspan, x0);
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.002:t_end;
+x = 0:1/f_s:t_end;
 y = deval(sol, x);
 results = array2table([x', y', u_f(x)']);
 results.Properties.VariableNames = {'t', 's', 'phi1', 'phi2', 'Ds', 'Dphi1','Dphi2', 'u'};
-writetable(results, 'doublePendSimData.csv')
+writetable(results, 'doublePendSimData3.csv')
 %% Plot
 % disp("Stackedplot...")
 % figure()
@@ -157,7 +161,7 @@ end
 
 frames = [getframe(h)];
 
-for k = 1:20:length(q)
+for k = 1:8:length(q)
     cla(a1)
     
     pc = P_c(q(k, :));
