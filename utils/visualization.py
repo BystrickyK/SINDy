@@ -123,7 +123,7 @@ def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
             ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
-@save_and_plot(filename='corr', stamp=True, plot=False)
+@save_and_plot(filename='corr', stamp=True, plot=True)
 def plot_corr(corr, regressor_names, labels=True):
 
     # labelstr = parse_function_strings(regressor_names)
@@ -141,10 +141,10 @@ def plot_corr(corr, regressor_names, labels=True):
         im = ax.matshow(corr, cmap='viridis', vmin=-1, vmax=1)
         ax.set_yticks([*range(min(labelstr.shape))])
         ax.set_yticklabels(labelstr)
-        ax.yaxis.set_tick_params(rotation=0, labelsize=7)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=10)
         ax.set_xticks([*range(min(labelstr.shape))])
         ax.set_xticklabels(labelstr)
-        ax.xaxis.set_tick_params(rotation=90, labelsize=7)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=10)
         fig.colorbar(im, ax=ax)
         if labels:
             for (col, row), val in np.ndenumerate(corr):

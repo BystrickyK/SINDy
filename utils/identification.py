@@ -74,7 +74,7 @@ class PI_Identifier:
                 # rhs, valid, residuals = seq_thresh_ls(A=theta, b=lhs, n=iters, threshold=hyperparameter)
 
                 rhs, valid, residuals = seq_energy_thresh_ls(A=theta, b=lhs, n=iters,
-                                                             lambda_=hyperparameter, verbose=True)
+                                                             lambda_=hyperparameter, verbose=False)
 
 
                 nnz_idx = np.nonzero(rhs)[0]
