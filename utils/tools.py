@@ -5,9 +5,10 @@ def cutoff(x, idx_cutoff):
     x = x.iloc[idx_cutoff:-idx_cutoff]
     return x
 
-def parse_function_strings(theta):
+def parse_function_strings(theta_cols):
     fun_strings = []
-    for fun in theta:
+    for fun in theta_cols:
+        print(fun)
         splits = fun.split('*')
         newvars = []
         if splits[0] == '1':
@@ -24,9 +25,22 @@ def parse_function_strings(theta):
         fun_strings.append(funstr)
     return fun_strings
 
-def parse_function_str_add_dots(vars):
+def latexify(theta_cols):
+    col_strings = []
+    for col in theta_cols:
+        col_strings.append(rf'$ {col} $')
+    return col_strings
+
+def d_to_dot(theta_cols):
+    col_strings = []
+    for col in theta_cols:
+        col = col.replace('dx', '\\dot{x}')
+        col_strings.append(col)
+    return col_strings
+
+def parse_function_str_add_dots(theta_cols):
     new_vars = []
-    for var in vars:
+    for var in theta_cols:
         result = re.search('\$\ (.*)\ \ \$', var)
         result = result.group(1)
         idx = re.search('\d', result)  # find number in var

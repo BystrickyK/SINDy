@@ -7,26 +7,28 @@ clc;
 
 l_1 = 0.3;
 a_1 = 0.18;
-m_1 = 2;
+m_1 = 1;
 I_1 = 0.6*m_1*a_1^2;
-b_1 = 0.12;
-m_c = 0.5;
+b_1 = 0.15;
+b_c = 15;
+m_c = 0.8;
 g = 9.81;
 
 params = [m_1,...             % pendulum weights
             I_1,...           % penndulum moments of inertia around CoMs
             a_1,...          % pendulum distances from joints to CoMs
             l_1,...           % pendulum lengths
-            b_1,...      % joint damping coefficients
+            b_1,...         % joint damping coefficients
+            b_c,...
             m_c,...
             g];
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 14;     % simulation time
+t_end = 20;     % simulation time
 f_s = 100;     % sampling
-f_c = 3;        % cutoff
-u_a = 2;      % input power
+f_c = 4;        % cutoff
+u_a = 6;      % input power
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)

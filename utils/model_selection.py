@@ -2,7 +2,11 @@ import numpy as np
 import time
 from utils.dynamical_systems import DynamicalSystem
 from utils.control_structures import timeout
-from utils.signal_processing import StateSignal, ForcingSignal, FullSignal
+from utils.signal_processing import StateSignal, ForcingSignal
+
+def calculate_fit(A, x, b):
+    fit = 1 - np.linalg.norm(b - np.dot(A, x)) / np.linalg.norm(b)
+    return fit
 
 
 def simdata_to_signals(sim_data):

@@ -7,17 +7,19 @@ savefile = 'singlePend.csv';
 
 l_1 = 0.3;
 a_1 = 0.18;
-m_1 = 2;
+m_1 = 1;
 I_1 = 0.6*m_1*a_1^2;
-b_1 = 0.12;
-m_c = 0.5;
+b_1 = 0.15;
+b_c = 15;
+m_c = 0.8;
 g = 9.81;
 
 params = [m_1,...             % pendulum weights
             I_1,...           % penndulum moments of inertia around CoMs
             a_1,...          % pendulum distances from joints to CoMs
             l_1,...           % pendulum lengths
-            b_1,...      % joint damping coefficients
+            b_1,...         % joint damping coefficients
+            b_c,...
             m_c,...
             g];
         
@@ -26,7 +28,7 @@ disp("Creating input signal...")
 t_end = 120;     % simulation time
 f_s = 100;     % sampling
 f_c = 3;        % cutoff
-u_a = 3;      % input power
+u_a = 6;      % input power
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
@@ -63,9 +65,9 @@ toc
 % x = linspace(0, t_end, 1000);
 x = 0:0.002:t_end;
 y = deval(sol, x);
-results = array2table([x', y', u_f(x)']);
-results.Properties.VariableNames = {'t', 's', 'phi1', 'Ds', 'Dphi1', 'u'};
-writetable(results, savefile)
+results_true = array2table([x', y', u_f(x)']);
+results_true.Properties.VariableNames = {'t', 's', 'phi1', 'Ds', 'Dphi1', 'u'};
+writetable(results_true, savefile)
 
 %% Plot
 % disp("Stackedplot...")
@@ -75,97 +77,71 @@ writetable(results, savefile)
 
 %% Define important coordinates and their derivatives
 disp("Defining important coordinates...")
-q = [results.s, results.phi1];
-dq = [results.Ds, results.Dphi1];
+q_true = [results_true.s, results_true.phi1];
 
 P_c = @(q) [q(1); 0];        % Cart
 
 P_1 = @(q) [l_1*sin(q(2)) + q(1);
     -l_1*cos(q(2))];         % Pendulum 1
 
-dP_c = @(q, dq) [dq(1); 0];
-
-dP_1 = @(q,dq) [dq(1) + a_1*cos(q(2))*dq(2);
-                a_1*sin(q(2))*dq(2)];
-
-%% Calculate kinetic, potential and total energies (for animation plots)
-disp("Calculating energies...")
-
-T = @(q,dq) (0.5 * m_1 * dP_1(q,dq)' * dP_1(q,dq) + ...
-    0.5 * I_1 * dq(2)^2 + ...
-    0.5 * m_c * dP_c(q,dq)' * dP_c(q,dq));  % Kinetic energy
-
-V = @(q) (g * m_1 * P_1(q)'*[0;1]);
-
-KE = [];    % Kinetic
-PE = [];    % Potential
-TE = [];    % Total
-for k = 1:length(q)
-    KE(k) = T(q(k, :),dq(k, :));
-    PE(k) = V(q(k, :));
-    TE(k) = KE(k)+PE(k);
-end
-
-
 %% Animation
-
 disp("Animating...")
 
-h = figure('Position', [10 10 1200 900]);
+h = figure('Position', [0 0 1920 1080]);
 
-a1 = subplot(1,2,1);
+t = tiledlayout(2,4, 'TileSpacing', 'tight', 'Padding', 'tight');
+
+a1 = nexttile([2 2]);
 grid on
 xlim([-1 1])
 ylim([-1 1])
 pbaspect([1 1 1])
 hold on
 
-a2 = subplot(3,2,2);
-xlim([0 t_end])
-ylim([min(KE)-10, max(KE)+10])
-ylabel("Kinetic")
-l2 = animatedline(a2);
+state_vars = results_true.Properties.VariableNames(2:end-1);
+tile_locs = [3, 7, 4, 8];
+for i = 1:length(state_vars)
+    disp(i)
+    var = state_vars{i};
+    ax(i) = nexttile(tile_locs(i));
+    ylabel(var);
+    lx_true(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'red');
+    xlim(tspan);
+    grid on
+end
 
-a3 = subplot(3,2,4);
-xlim([0 t_end])
-ylim([min(PE)-10, max(PE)+10])
-ylabel("Potential")
-l3 = animatedline(a3);
 
-a4 = subplot(3,2,6);
-xlim([0 t_end])
-ylim([min(TE)-10, max(TE)+10])
-ylabel("Total")
-l4 = animatedline(a4);
+frames = [getframe(h)];
 
-frames = [getframe(gcf)];
-
-for k = 1:5:length(q)
+for k = 1:24:length(q_true)
     cla(a1)
     
-    pc = P_c(q(k, :));
-    p1 = P_1(q(k, :));
+    yline(a1, 0, 'k-', 'LineWidth', 1.5)
+    
+    pc_true = P_c(q_true(k, :));
+    p1_true = P_1(q_true(k, :));
     
     title(a1, x(k))
-    plot(a1, [pc(1), p1(1)], [pc(2), p1(2)], 'kO-', 'LineWidth', 3)
-    plot(a1, [pc(1), pc(1)+u_f(x(k))/20], [pc(2), pc(2)], 'r', 'LineWidth', 2)
-
-    addpoints(l2, x(k), KE(k))
-    addpoints(l3, x(k), PE(k))
-    addpoints(l4, x(k), TE(k))
+    plot(a1, [pc_true(1), p1_true(1)], [pc_true(2), p1_true(2)], 'rO-', 'LineWidth', 3)
+    plot(a1, [0, u_f(x(k))/100], [0.5, 0.5], 'g', 'LineWidth', 2)
+    
+    for i = 1:length(state_vars)
+       var = state_vars{i};
+       addpoints(lx_true(i), x(k), results_true.(var)(k))
+       ax(i).XLim = [x(k)-3, x(k)+1];
+    end
     
     drawnow
-%     frames(end+1) = getframe(gcf);
+    frames(end+1) = getframe(h);
     
 end
-% 
-% writerObj = VideoWriter('singlePendulumCart');
-% writerObj.FrameRate = 20;
-% 
-% open(writerObj);
-% for k = 2:length(frames)
-%    frame = frames(k);
-%    writeVideo(writerObj, frame);
-% end
-% close(writerObj);
     
+writerObj = VideoWriter('singlePendulumCart');
+writerObj.FrameRate = 20;
+
+open(writerObj);
+for k = 2:length(frames)
+   frame = frames(k);
+   writeVideo(writerObj, frame);
+end
+close(writerObj);
