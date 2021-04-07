@@ -27,7 +27,7 @@ params = [m_1,...             % pendulum weights
 disp("Creating input signal...")
 t_end = 120;     % simulation time
 f_s = 100;     % sampling
-f_c = 3;        % cutoff
+f_c = 4;        % cutoff
 u_a = 6;      % input power
 
 % Random walk
@@ -35,6 +35,8 @@ u_a = 6;      % input power
     u_t = 0:(1/f_s):t_end;
     u = u_a * (rand(length(u_t), 1) - 0.5);
     u = filter(filt_b, filt_a, u);  % defines the cart position!
+    u(1:200) = 0;
+    u(end-200:end) = 0;
     limit = 0.3;
     u(u>limit) = limit;
     u(u<(-limit)) = -limit;  % ensures that the cart position doesn't go much further than 0.5
@@ -63,17 +65,17 @@ toc
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.002:t_end;
+x = 0:0.001:t_end;
 y = deval(sol, x);
 results_true = array2table([x', y', u_f(x)']);
 results_true.Properties.VariableNames = {'t', 's', 'phi1', 'Ds', 'Dphi1', 'u'};
 writetable(results_true, savefile)
 
 %% Plot
-% disp("Stackedplot...")
-% figure()
-% stackedplot(results, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
-% grid on
+disp("Stackedplot...")
+figure()
+stackedplot(results_true, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
+grid on
 
 %% Define important coordinates and their derivatives
 disp("Defining important coordinates...")
@@ -113,7 +115,7 @@ end
 
 frames = [getframe(h)];
 
-for k = 1:24:length(q_true)
+for k = 1:60:length(q_true)
     cla(a1)
     
     yline(a1, 0, 'k-', 'LineWidth', 1.5)

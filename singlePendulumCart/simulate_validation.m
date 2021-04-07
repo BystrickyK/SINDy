@@ -52,9 +52,9 @@ u_a = 6;      % input power
 disp("Solving...")
 
 % Create system of ODE functions for the solver
-odefun = @(t, X)identified_model(t, X, u_f);
+odefun = @(t, X)identified_model_dddata(t, X, u_f);
 
-x0 = [0, pi, 0, 0]; % initial conditions
+x0 = [0, pi/4, 0, 0]; % initial conditions
 tspan = [0 t_end]; % time span
 
 % Solve the system of ODEs

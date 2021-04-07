@@ -1,11 +1,9 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from utils.function_libraries import *
 from utils.signal_processing import *
 from utils.identification import PI_Identifier
-from utils.visualization import *
-from utils.tools import parse_function_strings
-from utils.model_selection import calculate_fit
 from utils.solution_processing import *
 import matplotlib as mpl
 import os
@@ -13,58 +11,86 @@ import pickle
 import sympy as sp
 from sympy.utilities.codegen import codegen
 from decimal import Decimal
-from scipy.signal import periodogram, welch
 
+# fft in moving window & averaging
 
 mpl.use('Qt5Agg')
 
 dirname = '.' + os.sep + 'singlePendulumCart' + os.sep + 'results' + os.sep
-filename = dirname + 'simdata2.csv'
+filename = dirname + 'simdata_dt001.csv'
 
 sim_data = pd.read_csv(filename)
+sim_data = pd.concat([sim_data, sim_data[::-1]]).reset_index(drop=True)
+# sim_data = pd.concat([sim_data, sim_data]).reset_index(drop=True)
+# sim_data = pd.concat([sim_data, sim_data]).reset_index(drop=True)
+# sim_data.loc[:, 'phi1'] /= (2*np.pi)
 dt = sim_data.iloc[1, 0] - sim_data.iloc[0, 0]
 
 # Create a filter object
-Filter = KernelFilter(kernel='flattop', kernel_size=60)
+Filter = KernelFilter(kernel='flattop', kernel_size=1)
 # Generate a StateSignal object from the measurement data and add noise
-rnp = np.array([0.2, 0.03, 0.1, 0.1])
+rnp = 1*np.array([0.05, 0.0002, 0.05, 0.05])
 X = StateSignal(sim_data.iloc[:, 1:-1], dt=dt, relative_noise_power=tuple(rnp))
+
 Xn = StateSignal(X.values, dt)
 Xc = StateSignal(X.values_clean, dt)  # Use clean data
-X = Filter.filter(X.values, 'x')  # Noisy data after filtering
+# X = Filter.filter(X.values, 'x')  # Noisy data after filtering
 DXc = StateDerivativeSignal(Xc, method='finitediff')
 
-filt = SpectralCutoffFilter(Xn, plot=True)
-Xf = filt.filter()
+filt = SpectralFilter(Xn)
+filt.find_cutoffs(k=0.95, gamma=1.3)  # Find the bandwidth of strong frequencies
+Xf = filt.filter()  # Set all weaker frequencies to 0
+filt = KernelFilter(kernel_size=1)  # Run the signal through a non-causal kernel filter
+Xf = filt.filter(Xf.values)
 
-fig, axs = plt.subplots(nrows=4, sharex=True, tight_layout=True)
-for i in range(4):
-    axs[i].set_title(f'x_{i+1}')
-    axs[i].plot(Xf.iloc[:, i], alpha=0.8)
-    axs[i].plot(Xc.values.iloc[:, i], alpha=0.8, linewidth=2)
-    axs[i].plot(Xn.values.iloc[:, i], alpha=0.3)
-    axs[i].legend(['Spectral filtered', 'Clean', 'Noisy'])
+# cutoff = 500
+# Xc = cutoff_ends(Xc.values, cutoff)
+# Xn = cutoff_ends(Xn.values, cutoff)
+# Xf = cutoff_ends(Xf, cutoff)
+# DXc = cutoff_ends(DXc.values, cutoff)
 
-
-
-X = StateSignal(X, dt)
-DX = StateDerivativeSignal(X, method='spectral', kernel_size=20, spectral_cutoff=[0.2, 0.2, 0.2, 0.2])
+Xf = StateSignal(Xf.values, dt)
+DX = StateDerivativeSignal(Xf, method='spectral', kernel_size=1)
+DXfin = StateDerivativeSignal(X, method='finitediff')
 u = ForcingSignal(sim_data.iloc[:, -1], dt)
 
-fig, axs = plt.subplots(nrows=4, ncols=2, sharex=True, tight_layout=True)
+Xf_error = np.array(Xf.values - Xc.values)
+Xn_error = np.array(Xn.values - Xc.values)
+
+# Xc = cutoff_ends(Xc, cutoff)
+# Xn = cutoff_ends(Xn, cutoff)
+# Xf = cutoff_ends(Xf.values, cutoff)
+# DXc = cutoff_ends(DXc, cutoff)
+# DX = cutoff_ends(DX.values, cutoff)
+# u = cutoff_ends(u.values, 2*cutoff)
+
+# filt = SpectralFilter(DX)
+# filt.find_cutoffs(k=0.5, gamma=0.5, plot=True)
+# DX = filt.filter()
+
+fig, axs = plt.subplots(nrows=4, ncols=3, sharex=True, tight_layout=True)
+left = 0
+right = 58001
 for i in range(axs.shape[0]):
-    axs[i,0].plot(DXc.values.values[200:2000, i], linewidth=2)
-    axs[i,0].plot(DX.values.values[200:2000, i], alpha=0.7)
+    axs[i,0].plot(DXc.values.iloc[left:right, i], linewidth=2)
+    axs[i,0].plot(DX.values.iloc[left:right, i], alpha=0.7)
     axs[i,0].legend(["Clean", "Spectral"])
-    axs[i,1].plot(Xc.values.values[200:2000, i], linewidth=2)
-    axs[i,1].plot(Xn.values.values[200:2000, i], alpha=0.7)
-    axs[i,1].plot(X.values.values[200:2000, i], alpha=0.7)
+    axs[i,1].plot(Xc.values.iloc[left:right, i], linewidth=2)
+    axs[i,1].plot(Xn.values.iloc[left:right, i], alpha=0.7)
+    axs[i,1].plot(Xf.values.iloc[left:right, i], alpha=0.7)
     axs[i,1].legend(["Clean", "Noisy", "Filtered"])
-    plt.show()
+    axs[i,2].plot(Xf_error[left:right, i], alpha=0.7)
+    axs[i,2].plot(Xn_error[left:right, i], alpha=0.7)
+plt.show()
+print(f"Mean square error: {np.sum(np.square(Xf_error), axis=0)/len(Xf_error)}")
+
 # state_data = X.x
-state_data = X.values
-state_derivative_data = DX.values
-input_data = u.values
+N = Xf.values.shape[0]
+
+state_data = Xf.values.iloc[:int(N/2), :].reset_index(drop=True)
+state_derivative_data = DX.values.iloc[:int(N/2), :].reset_index(drop=True)
+input_data = u.values.iloc[:int(N/2), :].reset_index(drop=True)
+
 
 # state_data = Xclean.x
 # state_derivative_data = dXclean.dx
@@ -111,11 +137,11 @@ theta = theta.loc[:, ~theta.columns.duplicated()]
 dump_idx = np.array([col.count('sin') == 2 for col in theta.columns])  # Find indices of cols that contain sin^2(x)
 theta = theta.iloc[:, ~dump_idx]  # Keep all other columns
 
-cutoff = 200
-theta = theta.iloc[cutoff:-cutoff, :]
-theta.reset_index(inplace=True)
-theta.drop('index', axis=1, inplace=True)
+# cutoff = 500
+# theta = theta.iloc[cutoff:-cutoff, :]
+# theta.reset_index(inplace=True, drop=True)
 
+# theta.plot(subplots=True)
 # theta.plot(subplots=True, layout=(3,4))
 # Plot the correlation matrix of the regression matrix
 corr = theta.corr()
@@ -126,7 +152,7 @@ plt.show()
 
 rewrite = False # Should the cache be rewritten
 eqns_to_identify = ['dx_1', 'dx_2', 'dx_3', 'dx_4']  # State derivatives whose equation we want to identify
-cache_str = 'singlePendSolutionsFullEnergyThresh'
+cache_str = 'singlePendSolutionsFullEnergyThreshNoisy'
 eqns_models = {}
 for eqn in eqns_to_identify:
     # find cols with other state derivatives than the one currently being identified
@@ -146,7 +172,7 @@ for eqn in eqns_to_identify:
     else:
         print("No solution in cache, calculating solution from scratch.")
         EqnIdentifier = PI_Identifier(theta_hat)
-        EqnIdentifier.set_thresh_range(lims=(0.0001, 0.2), n=5)
+        EqnIdentifier.set_thresh_range(lims=(0.00001, 0.1), n=10)
         EqnIdentifier.create_models(n_models=theta_hat.shape[1], iters=7, shuffle=False)
         eqns_models[eqn]['models'] = EqnIdentifier.all_models
         with open(cachename, 'wb') as f:
@@ -160,7 +186,7 @@ for eqn_str, eqn_model in eqns_models.items():
 
     # %% Remove duplicate models
     models = unique_models(models, theta.columns)
-    models = models.loc[models.fit > 0.7, :].reset_index()
+    models = models.loc[models.fit > 0.7, :].reset_index(drop=True)
 
     eqns = [[*zip(np.round(model.sol[model.active], 3), theta.columns[model.active])]
             for idx, model in models.iterrows()]
@@ -264,8 +290,7 @@ for eqn_str, eqn_model in eqns_models.items():
 
     data = pd.concat([state_data, input_data], axis=1)
     eqn_data = data.apply(eqn_lambda, axis=1)
-    eqn_data = eqn_data[cutoff:-cutoff].reset_index()
-    eqn_data.drop('index', axis=1, inplace=True)
+    # eqn_data = eqn_data[cutoff:-cutoff].reset_index()
 
     # fig, ax = plt.subplots(tight_layout=True)
     # ax.plot(eqn_data)

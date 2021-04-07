@@ -2,7 +2,10 @@ import numpy as np
 import scipy.signal
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.signal import welch, periodogram
+from scipy.signal import welch, find_peaks
+
+def cutoff_ends(data, cutoff):
+    return data.iloc[cutoff:-cutoff, :]
 
 def fft(x, dt):
     n = x.shape[0]  # Number of samples
@@ -12,8 +15,8 @@ def fft(x, dt):
     x_hat = np.fft.fft(x, axis=0)
     x_hat = np.fft.fftshift(x_hat, axes=0)
 
-    # Fourier frequencies
-    omega = (fs/n) * np.arange(-n / 2, n / 2)
+    # Fourier frequencies in rad/s
+    omega = (fs*2*np.pi/n) * np.arange(-n / 2, n / 2)
     omega = omega[:, np.newaxis]
 
     return omega, x_hat
@@ -82,7 +85,7 @@ class StateSignal(Signal):
         self._relative_noise_power = noise_power
 
 class StateDerivativeSignal(Signal):
-    def __init__(self, state_signal, method='spectral', kernel_size=11, spectral_cutoff=None):
+    def __init__(self, state_signal, method='spectral', kernel_size=11, ):
         """
 
         Args:
@@ -95,9 +98,9 @@ class StateDerivativeSignal(Signal):
 
         # The DataFrame self.dx is calculated via numerical differentiation
         if method=='spectral':
-            Differentiator = SpectralDifferentiator(spectral_cutoff=spectral_cutoff)
+            Differentiator = SpectralDifferentiator()
             self.values = Differentiator.compute_derivative(state_signal.values, self.dt)
-            Filter = KernelFilter(kernel='flattop', kernel_size=kernel_size)
+            Filter = KernelFilter(kernel='hann', kernel_size=kernel_size)
             self.values = Filter.filter(self.values, var_label='dx')
 
         if method=='finitediff':
@@ -116,45 +119,52 @@ class ForcingSignal(Signal):
 
         self.values = create_df(forcing_data, var_label='u')
 
-class SpectralCutoffFilter:
-    def __init__(self, X, k=0.8, gamma=1.7, plot=False):
+class SpectralFilter:
+    def __init__(self, X,  plot=False):
 
         self.X = X
         self.dt = X.dt
-        self.k = k
-
         self.N = X.values.shape[1]
 
-        self.gamma = gamma
         self.cutoffs = []
+
+
+    def find_cutoffs(self, k=0.8, gamma=1.5, plot=True):
+
+        self.cutoffs = []
+
         if plot:
             fig, axs = plt.subplots(nrows=self.N, sharex=True, tight_layout=True)
         for i in range(self.N):
 
-            f, Pxx = welch(X.values.values[:, i], fs=1./self.dt)
-            Pxx_meanlog = np.exp(self.k * np.mean(np.log(Pxx)))
-            # f_cutoff_idx = np.argmin(np.abs(Pxx - Pxx_meanlog))
-            f_cutoff_idx = np.where(np.diff(np.sign(np.log(Pxx)-np.log(Pxx_meanlog))))[-1]+1
-            f_cutoff = f[f_cutoff_idx] * self.gamma  # Multiply the cutoff frequency
+            f, Pxx = welch(self.X.values.values[:, i], fs=1. / self.dt, nperseg=1024)
+            f = f * 2 * np.pi  # Convert from Hz to rad/s
+            Pxx_meanlog = np.exp(k * np.mean(np.log(Pxx)))
+            # Pxx_diff = np.exp(np.diff(np.log(Pxx)))
+            f_cutoff_idx = np.where(np.diff(np.sign(np.log(Pxx) - np.log(Pxx_meanlog))))[-1] + 1
+            f_cutoff = f[f_cutoff_idx] * gamma  # Multiply the cutoff frequency
             self.cutoffs.append({'idx': f_cutoff_idx, 'cutoff': f_cutoff})
             # f_f, Pxx_f = welch(X.values.values[:, i], 1/dt)
 
             if plot:
-                if i==0:
-                    title = 'Power Spectral Density from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i+1))
+                if i == 0:
+                    title = 'Power Spectral Density from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
                 else:
-                    title = '$ \hat{}_{} $'.format('x', str(i+1))
+                    title = '$ \hat{}_{} $'.format('x', str(i + 1))
                 axs[i].set_title(rf'{title}')
-                axs[i].semilogy(f, Pxx, linewidth=2, alpha=0.7)
+                axs[i].semilogy(f, Pxx, linewidth=3, alpha=0.8, marker='o')
+                # axs[i].semilogy(f[:-1], Pxx_diff, linewidth=2, alpha=0.7)
+
                 axs[i].hlines(Pxx_meanlog, xmin=0, xmax=f[-1],
                               linestyle=':', color='black')
-                axs[i].vlines([f_cutoff, f_cutoff/self.gamma], ymin=Pxx.min(), ymax=Pxx.max(),
-                              linestyle=':', color='black')
+                axs[i].vlines([f_cutoff, f_cutoff / gamma], ymin=Pxx.min(), ymax=Pxx.max(),
+                              linestyle='-.', color='black')
                 # axs[i].semilogy(f_f, Pxx_f, linewidth=2, alpha=0.7)
-                axs[i].set_ylabel('PSD')
-                axs[self.N-1].set_xlabel('Frequency [Hz]')
+                axs[i].set_ylabel(r'$PSD$')
+                axs[self.N - 1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+        if plot:
+            plt.show()
 
-    # Spectral cutoff
     def filter(self, x=None, dt=None, var_label='x', plot=True):
         if x is None:
             x = self.X.values.values
@@ -166,8 +176,6 @@ class SpectralCutoffFilter:
         # Initialize array for filtered data in Fourier domain
         x_hat_f = np.zeros_like(x, dtype='complex')
 
-        print(omega.shape)
-        print(x_hat.shape)
         N = x.shape[1] # Number of signals
         if plot:
             fig, axs = plt.subplots(nrows=N, tight_layout=True, sharex=True)
@@ -181,17 +189,62 @@ class SpectralCutoffFilter:
             if plot:
                 x_hat_abs = np.abs(x_hat[:, col])
                 x_hat_f_abs = np.abs(x_hat_f[:, col])
-                title = '$ \hat{}_{} $'.format('x', str(col))
+                title = '$ \hat{}_{} $'.format('x', str(col+1))
                 axs[col].set_title(rf'{title}')
-                axs[col].semilogy(omega, x_hat_abs, alpha=0.7)
-                axs[col].semilogy(omega, x_hat_f_abs, alpha=0.7)
+                axs[col].semilogy(omega, x_hat_abs, alpha=1,
+                                  marker='.', linestyle='none')
+                axs[col].semilogy(omega, x_hat_f_abs, alpha=0.7,
+                                  marker='.', linestyle='none')
                 axs[col].vlines([omega[idx_r], omega[idx_l]], ymin=np.min(x_hat_abs), ymax=np.max(x_hat_abs),
                                 linestyle=':', color='black')
-                axs[N-1].set_xlabel('Frequency [Hz]')
-                axs[col].set_ylabel('PSD')
+                axs[N-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[col].set_ylabel(r'$PSD$')
 
-        plt.show()
-        return create_df(ifft(x_hat_f), var_label=var_label)
+                plt.show()
+
+        self.X_filtered = create_df(ifft(x_hat_f), var_label=var_label)
+        return self.X_filtered
+
+    def remove_peaks(self, x=None, var_label='x', plot=True):
+        if x is None:
+            x = self.X.values.values
+            dt = self.X.dt
+
+
+        # Calculate frequencies and Fourier coeffs
+        omega, x_hat = fft(x, dt)
+        x_hat_real = np.real(x_hat)
+        filt = KernelFilter(kernel_size=50)
+        x_hat_real = filt.filter(x_hat_real).values
+
+        # Initialize array for filtered data in Fourier domain
+        x_hat_f = np.zeros_like(x, dtype='complex')
+
+        N = x.shape[1] # Number of signals
+        L = x.shape[0] # Number of samples
+
+
+        if plot:
+            fig, axs = plt.subplots(nrows=N, tight_layout=True, sharex=True)
+
+        for col in range(N):
+            # Find frequency index of the respective cutoff frequency
+            [peaks, peak_props] = find_peaks(x_hat_real[:, col], prominence=1000, distance=L/200)
+            if len(peaks)%2 == 1 and len(peaks)>1:  # If # of peaks is odd and >1
+                idx_l = peaks[0]  # Pick the outer peaks
+                idx_r = peaks[-1]
+                x_hat[idx_l-50:idx_l+50, col] = 0  # And set the neighborhoods to 0
+                x_hat[idx_r-50:idx_r+50, col] = 0
+                if plot:
+                    axs[col].vlines([idx_l, idx_r], ymin=-1000, ymax=1000,
+                                    color='red', linewidth=3)
+
+            if plot:
+                axs[col].plot(x_hat_real[:, col], '.')
+
+        self.X_filtered = create_df(ifft(x_hat), var_label=var_label)
+        return self.X_filtered
+
 
 
 class KernelFilter:
@@ -236,18 +289,8 @@ class KernelFilter:
         return create_df(x_filtered, var_label=var_label)
 
 class SpectralDifferentiator:
-    def __init__(self, spectral_cutoff=None):
-        self.spectral_cutoff = spectral_cutoff
-
-    @property
-    def spectral_cutoff(self):
-        return self.__spectral_cutoff
-
-    @spectral_cutoff.setter
-    def spectral_cutoff(self, spectral_cutoff):
-        # How many frequencies should be kept from each side of the spectrum (centered at 0 freq)
-        # between (0,0.5)
-        self.__spectral_cutoff = spectral_cutoff
+    def __init__(self):
+        pass
 
     # Calculates the spectral derivative from self.x
     def compute_derivative(self, x, dt, var_label='dx'):
@@ -267,15 +310,15 @@ class SpectralDifferentiator:
         # omega = omega[:, np.newaxis]
         omega, x_hat = fft(x, dt)
 
-        if self.spectral_cutoff:
-            # Create mask
-            mask = np.zeros([n, dims])
-            for idx, cutoff in enumerate(self.spectral_cutoff):
-                cutoff = n / 2 - cutoff * n
-                cutoff = int(cutoff)
-                mask[cutoff: -cutoff, idx] = 1  # Keep coeffs between cutoff indices
+        # if self.spectral_cutoff:
+        #     # Create mask
+        #     mask = np.zeros([n, dims])
+        #     for idx, cutoff in enumerate(self.spectral_cutoff):
+        #         cutoff = n / 2 - cutoff * n
+        #         cutoff = int(cutoff)
+        #         mask[cutoff: -cutoff, idx] = 1  # Keep coeffs between cutoff indices
             # Truncate Fourier coefficients
-            x_hat = x_hat * mask
+            # x_hat = x_hat * mask
 
         dxdt_hat = 1j * omega * x_hat
         dxdt_hat = np.fft.ifftshift(dxdt_hat, axes=0)
