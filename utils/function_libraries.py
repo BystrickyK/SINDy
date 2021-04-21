@@ -79,13 +79,24 @@ def sum_library(x, multipliers=(-2, -1, 0, 1, 2)):
     return df
 
 def trigonometric_library(x):
-    sines = np.sin(x)
-    sines.columns = ['sin(' + col_name + ')' for col_name in x.columns]
+    if isinstance(x, pd.DataFrame):
+        sines = np.sin(x)
+        sines.columns = ['sin(' + col_name + ')' for col_name in x.columns]
 
-    cosines = np.cos(x)
-    cosines.columns = ['cos(' + col_name + ')' for col_name in x.columns]
+        cosines = np.cos(x)
+        cosines.columns = ['cos(' + col_name + ')' for col_name in x.columns]
 
-    df = pd.concat([sines, cosines], axis=1)
+        df = pd.concat([sines, cosines], axis=1)
+
+    elif isinstance(x, pd.Series):
+        sines = np.sin(x)
+        sines.name = 'sin(' + x.name + ')'
+
+        cosines = np.cos(x)
+        cosines.name = 'cos(' + x.name + ')'
+
+        df = pd.concat([sines, cosines], axis=1)
+
     return df
 
 def product_library(multipliers, multiplicands):

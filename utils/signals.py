@@ -5,6 +5,22 @@ import matplotlib.pyplot as plt
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['mathtext.rm'] = 'cm'
 
+def signal_energy(signal):
+    signal = np.array(signal)
+    energy = np.sum(np.square(signal))
+    return energy
+
+def energy_normalization(data):
+    """
+    Assuming rows are samples and columns are signals. Rescales each signal so its energy
+    is equal to the mean/100 of the dataset's column energies.
+    """
+    col_energies = np.apply_along_axis(func1d=signal_energy, axis=0, arr=data)
+    mean_energy = np.mean(col_energies)
+    normalization_parameters = mean_energy / (col_energies * 100)
+    normalized_data = data * mean_energy / col_energies
+    return normalized_data, normalization_parameters
+
 def white_noise(N, dispersion, mean=0, distribution='gaussian', seed=None):
     if seed is not None:
         np.random.seed(seed)  # Set the seed for identical results on every run

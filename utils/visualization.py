@@ -72,7 +72,7 @@ def set_save_plot_options(save=False,
 ####################################################################################
 ####################################################################################
 save_and_plot = set_save_plot_options(save=True, plot=False,
-                                      add_stamp=True, format='.jpg', dpi=180)
+                                      add_stamp=True, format='.svg', dpi=180)
 ####################################################################################
 ####################################################################################
 
@@ -124,7 +124,7 @@ def plot_ksi(ksi, theta, dx, ax, show_sparse=True, show_sparse_tol=0.1):
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
 @save_and_plot(filename='corr', stamp=True, plot=True)
-def plot_corr(corr, regressor_names, labels=True):
+def plot_corr(corr, regressor_names, labels=True, ticks=True):
 
     # labelstr = parse_function_strings(regressor_names)
     # labelstr = parse_function_str_add_dots(regressor_names)
@@ -140,13 +140,14 @@ def plot_corr(corr, regressor_names, labels=True):
                            figsize=figsize, tight_layout=True)
     with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
         im = ax.matshow(corr, cmap='viridis', vmin=-1, vmax=1)
-        ax.set_yticks([*range(min(labelstr.shape))])
-        ax.set_yticklabels(labelstr)
-        ax.yaxis.set_tick_params(rotation=0, labelsize=10)
-        ax.set_xticks([*range(min(labelstr.shape))])
-        ax.set_xticklabels(labelstr)
-        ax.xaxis.set_tick_params(rotation=90, labelsize=10)
-        fig.colorbar(im, ax=ax)
+        if ticks:
+            ax.set_yticks([*range(min(labelstr.shape))])
+            ax.set_yticklabels(labelstr)
+            ax.yaxis.set_tick_params(rotation=0, labelsize=10)
+            ax.set_xticks([*range(min(labelstr.shape))])
+            ax.set_xticklabels(labelstr)
+            ax.xaxis.set_tick_params(rotation=90, labelsize=10)
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, shrink=0.5)
         if labels:
             for (col, row), val in np.ndenumerate(corr):
                 ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
@@ -197,16 +198,21 @@ def plot_implicit_sols(models, theta_labels,
     theta_labels = d_to_dot(latexify(theta_labels))
     sols = sols[theta_active, :]
 
-    fits = models['fit']
+    trainerrors = models['rmse_train']
+    valerrors = models['rmse_val']
 
     lhs_labels = models['lhs'].values
     lhs_labels = latexify(lhs_labels)
     lhs_labels = d_to_dot(lhs_labels)
     indices = range(len(lhs_labels))
-    fit_str = [str(np.round(fit,4)) for fit in fits]
-    lhs_labels = [r' | '.join([lhs, str(fit), ':'.join(['idx',str(idx)])]) for idx,fit,lhs in zip(indices, fit_str, lhs_labels)]
+    trainerror_str = [str(np.round(fit,2)) for fit in trainerrors]
+    valerror_str = [str(np.round(fit,2)) for fit in valerrors]
+    # lhs_labels = [r' | '.join([lhs, str(trainerror), str(valerror),
+    #                            ':'.join(['idx',str(idx)])]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
+    lhs_labels = [r' | '.join([str(idx), lhs, str(valerror),
+                               ]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
 
-    figsize = tuple(np.array(sols.shape) * 0.18 + 3)
+    figsize = tuple(np.array(sols.shape) * 0.22 + 3)
     if figsize[1] > 70:
         figsize = np.array(figsize)
         figsize[1] = figsize[1] * 0.5
@@ -216,22 +222,82 @@ def plot_implicit_sols(models, theta_labels,
         figsize = tuple(np.array(figsize)+2)
     print(f"Creating implicit solutions plot\nImage size:\t{figsize}")
 
+    colormap = color_palette('coolwarm', as_cmap=True)
+
     fig, ax = plt.subplots(1, 1,
                            figsize=figsize, tight_layout=True)
     with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
-        ax.matshow(sols.T, cmap='bwr', vmin=-0.01, vmax=0.01)
-        if axislabels:
-            ax.set_yticks([*range(sols.shape[1])])
-            ax.set_yticklabels(lhs_labels)
-            ax.yaxis.set_tick_params(rotation=0, labelsize=12)
-            ax.set_xticks([*range(len(theta_labels))])
-            ax.set_xticklabels(theta_labels)
-            ax.xaxis.set_tick_params(rotation=90, labelsize=12)
-        if show_labels:
-            for (row, col), val in np.ndenumerate(sols):
-                ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
-                        bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3',
-                                  alpha=0.7))
+        ax.matshow(sols.T, cmap=colormap, vmin=-0.01, vmax=0.01)
+    if axislabels:
+        ax.set_yticks([*range(sols.shape[1])])
+        ax.set_yticklabels(lhs_labels)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=12)
+        ax.set_xticks([*range(len(theta_labels))])
+        ax.set_xticklabels(theta_labels)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=12)
+    if show_labels:
+        for (row, col), val in np.ndenumerate(sols):
+            ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
+                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3',
+                              alpha=0.7))
+
+
+@save_and_plot(filename='implicit_sols', stamp=True, plot=True)
+def pareto_front(models, use_train=True, title='title'):
+
+    complexities = [np.sum(active) for active in models['active']]
+    val = models['rmse_val']
+    train = models['rmse_train']
+
+    frontier_error = dict(zip(complexities, val))  # Initialize
+    for comp, err in zip(complexities, val):
+        if frontier_error[comp] > err:
+            frontier_error[comp] = err
+
+    par_x = np.array([*frontier_error.keys()])
+    par_y = np.array([*frontier_error.values()])
+    idx = np.argsort(par_x)
+    par_x = par_x[idx]
+    par_y = par_y[idx]
+
+    par_x, par_y = list(par_x), list(par_y)
+    len_parx = len(par_x)
+    for i in range(len_parx):
+        diffs = np.diff(par_y)
+        remove_idx = np.argwhere(diffs>0)
+        if remove_idx.shape[0]>0:
+            remove_idx = remove_idx[0][0] + 1
+            par_x.pop(remove_idx)
+            par_y.pop(remove_idx)
+        else:
+            break
+
+    print(f"Creating Pareto front plot")
+
+    fig, ax = plt.subplots(1, 1,
+                           figsize=(6,4), tight_layout=True)
+    with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
+        if use_train:
+            ax.plot(complexities, train, marker='.', markersize=10, alpha=0.7, linestyle='none')
+        else:
+            ax.plot(complexities, val, marker='.', markersize=10, alpha=0.7, linestyle='none')
+        ax.plot(par_x, par_y, marker='x', alpha=0.7, markersize=10, color='r',
+                linestyle='-.', linewidth=2)
+        ax.set_xlabel('Model complexity [# of terms]')
+        ax.set_ylabel('Normalized validation error [-]')
+        if use_train:
+            ax.legend(['Train RMSE', 'Pareto frontier'])
+        else:
+            ax.legend(['Val RMSE', 'Pareto frontier'])
+        ax.set_title(title)
+
+    return fig, ax
+
+        # if show_labels:
+        #     for (row, col), val in np.ndenumerate(sols):
+        #         ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
+        #                 bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3',
+        #                           alpha=0.7))
 
 @save_and_plot(filename='ksi', stamp=True, plot=True)
 def plot_ksi_fig(ksi, theta, dx, show_sparse=True, title=None):
@@ -252,27 +318,31 @@ def compare_ksi(ksi1, theta1, ksi2, theta2, dx, show_sparse=True):
     plot_ksi(ksi2, theta2, dx, ax[1], show_sparse=show_sparse)
     return fig
 
-@save_and_plot(filename='ksi_comp')
+@save_and_plot(filename='ksi_comp', plot=True)
 def plot_svd(svd):
     dims = svd['U'].shape[1]
     fig, axs = plt.subplots(1, 2)
     fig.set_size_inches(10, 6)
 
     p0 = axs[0].matshow(svd['U'], cmap='cividis')
-    plt.colorbar(p0, ax=axs[0])
+    fig.colorbar(p0, ax=axs[0], fraction=0.046, pad=0.04, shrink=0.5)
     axs[0].set_xticks([*range(0, dims)])
     axs[0].set_xticklabels(['PC' + str(i + 1) for i in range(dims)])
     axs[0].set_yticks([*range(0, dims)])
     axs[0].set_yticklabels(['X' + str(i + 1) for i in range(dims)])
     axs[0].set_title("Left Singular Vectors\nPrincipal Components")
 
-    p1 = axs[1].matshow(svd['Sigma'], cmap='viridis')
-    plt.colorbar(p1, ax=axs[1])
+    p1 = axs[1].matshow(svd['Sigma'], cmap='viridis',
+                        norm=mpl.colors.LogNorm(vmin=0.1,
+                                         vmax=np.max(svd['Sigma'])))
+    fig.colorbar(p1, ax=axs[1],
+                 fraction=0.046, pad=0.04, shrink=0.5)
     axs[1].set_xticks([*range(0, dims)])
     axs[1].set_xticklabels([str(i + 1) for i in range(dims)])
     axs[1].set_yticks([*range(0, dims)])
     axs[1].set_yticklabels([str(i + 1) for i in range(dims)])
     axs[1].set_title("Singular Values")
+
     return fig
 
 @save_and_plot(filename='lorentz3d', plot=True)

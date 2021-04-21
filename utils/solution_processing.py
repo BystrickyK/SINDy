@@ -5,17 +5,18 @@ from scipy.spatial import distance_matrix as dist_mat
 from sklearn.cluster import AgglomerativeClustering
 from collections import Counter
 
-def unique_models(models, theta_cols):
+def process_models(models, theta_cols):
     #%% Remove duplicate models and reorder the equations to implicit
     sols = []
     active = []
     lhs_guess_str = []
     residuals = []
-    fits = []
+    trainfits = []
+    valfits = []
     model_hashes = []
     for model in models:
         # 0 -> lhs string; 1 -> rhs string; 2 -> rhs solution; 3 -> complexity
-        # 4 -> residuals; 5 -> fit
+        # 4 -> residuals; 5 -> trainfit
         model_hash = hash(str(model[0]) + str(model[2]))
         if model_hash not in model_hashes:
             lhs_guess_idx = list(theta_cols).index(model[0])
@@ -28,12 +29,13 @@ def unique_models(models, theta_cols):
             active.append(active_regressors)
             lhs_guess_str.append(model[0])
             residuals.append(model[4])
-            fits.append(model[5])
+            trainfits.append(model[5])
+            valfits.append(model[6])
             model_hashes.append(model_hash)
         else:
             pass
-    models = pd.DataFrame([*zip(lhs_guess_str, sols, active, residuals, fits)])
-    models.columns = ['lhs', 'sol', 'active', 'ssr', 'fit']
+    models = pd.DataFrame([*zip(lhs_guess_str, sols, active, residuals, trainfits, valfits)])
+    models.columns = ['lhs', 'sol', 'active', 'ssr', 'trainerror', 'valerror']
     return models
 
 def distance_matrix(models, plot=False):

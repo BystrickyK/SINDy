@@ -4,6 +4,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import welch, find_peaks
 
+def energy_normalize(data):
+    col_energy = np.square(data).sum(axis=0)  # sum squares over the rows
+    energy_normalized_data = data / np.sqrt(col_energy)  # divide every column by the sqrt of the respective energy
+    # energy_normalized_data *= 1e7  # set the column's energy (1e0 would be too low)
+    return energy_normalized_data
+
 def cutoff_ends(data, cutoff):
     return data.iloc[cutoff:-cutoff, :]
 

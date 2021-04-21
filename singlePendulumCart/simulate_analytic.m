@@ -27,8 +27,8 @@ params = [m_1,...             % pendulum weights
 disp("Creating input signal...")
 t_end = 120;     % simulation time
 f_s = 100;     % sampling
-f_c = 4;        % cutoff
-u_a = 6;      % input power
+f_c = 3;        % cutoff
+u_a = 3;      % input power
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)

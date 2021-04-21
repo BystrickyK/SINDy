@@ -97,26 +97,29 @@ input_data = u.values.iloc[:int(N/2), :].reset_index(drop=True)
 # input_data = u.u
 
 dim = state_data.shape[1]
+#%% Basis terms
+trig_basis_part = trigonometric_library(state_data.iloc[:, 1])
+theta_basis = pd.concat(state_data.iloc[:, (2,3)], trig_basis_part, input_data)
 
 # state_derivative_data = state_derivative_data.iloc[:, dim//2:]  # Remove ambiguity between x3,x4 and dx1,dx2
-# %%
-# Build library with sums of angles (state var 2) and its sines/cosines
-trig_data = trigonometric_library(state_data.iloc[:, 1:dim // 2])
-trig_data = poly_library(trig_data, (1, 2))
-
-v_sq = square_library(state_data.iloc[:, 3:4])
-
-trig_v_sq = product_library(trig_data, v_sq)
-trig_v_sq = trig_v_sq.iloc[:, 1:]
-
-trig_bilinears = product_library(trig_data, pd.concat((state_data.loc[:, ('x_3', 'x_4')],
-                                                       state_derivative_data.loc[:, ('dx_3', 'dx_4')],
-                                                       input_data), axis=1))
-
-# because of cos^2(x) = 1-sin^2(x) identity
-bad_idx = np.array(['1*' in colname or 'sin(x_2)*sin(x_2)' in colname for colname in trig_bilinears.columns])
-trig_bilinears = trig_bilinears.iloc[:, ~bad_idx]
-# linear/angular accelerations -> second half of state var derivatives
+# # %%
+# # Build library with sums of angles (state var 2) and its sines/cosines
+# trig_data = trigonometric_library(state_data.iloc[:, 1:dim // 2])
+# trig_data = poly_library(trig_data, (1, 2))
+#
+# v_sq = square_library(state_data.iloc[:, 3:4])
+#
+# trig_v_sq = product_library(trig_data, v_sq)
+# trig_v_sq = trig_v_sq.iloc[:, 1:]
+#
+# trig_bilinears = product_library(trig_data, pd.concat((state_data.loc[:, ('x_3', 'x_4')],
+#                                                        state_derivative_data.loc[:, ('dx_3', 'dx_4')],
+#                                                        input_data), axis=1))
+#
+# # because of cos^2(x) = 1-sin^2(x) identity
+# bad_idx = np.array(['1*' in colname or 'sin(x_2)*sin(x_2)' in colname for colname in trig_bilinears.columns])
+# trig_bilinears = trig_bilinears.iloc[:, ~bad_idx]
+# # linear/angular accelerations -> second half of state var derivatives
 # %%
 # trig_state_derivative = product_library(trig_data, state_derivative_data)
 # acceleration_data = trig_state_derivative
@@ -124,8 +127,8 @@ trig_bilinears = trig_bilinears.iloc[:, ~bad_idx]
 # Function library Theta
 # theta = pd.concat([state_data, state_derivative_data,
 #                    trig_data, trig_state_derivative], axis=1)
-theta = pd.concat([state_data, state_derivative_data, input_data, trig_data, trig_v_sq, trig_bilinears], axis=1)
-theta = theta.loc[:, ~theta.columns.duplicated()]
+# theta = pd.concat([state_data, state_derivative_data, input_data, trig_data, trig_v_sq, trig_bilinears], axis=1)
+# theta = theta.loc[:, ~theta.columns.duplicated()]
 
 # keep_idx = [col.count('d')<2 and not 'x_1' in col for col in theta.columns]
 # theta = theta.loc[:, keep_idx]
@@ -134,8 +137,8 @@ theta = theta.loc[:, ~theta.columns.duplicated()]
 # trig = ['(' in col for col in theta.columns]
 # dump_idx = np.array([x_c==3 and not trig for x_c,trig in zip(x_count, trig)])
 # theta = theta.loc[:, ~dump_idx].reset_index()
-dump_idx = np.array([col.count('sin') == 2 for col in theta.columns])  # Find indices of cols that contain sin^2(x)
-theta = theta.iloc[:, ~dump_idx]  # Keep all other columns
+# dump_idx = np.array([col.count('sin') == 2 for col in theta.columns])  # Find indices of cols that contain sin^2(x)
+# theta = theta.iloc[:, ~dump_idx]  # Keep all other columns
 
 # cutoff = 500
 # theta = theta.iloc[cutoff:-cutoff, :]

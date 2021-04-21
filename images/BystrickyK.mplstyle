@@ -1,17 +1,17 @@
-axes.titlesize : 18
-axes.labelsize : 15
+axes.titlesize : 14
+axes.labelsize : 14
 axes.grid : True
 
-grid.alpha : 0.5
+grid.alpha : 0.75
 
 figure.autolayout : True
-figure.titlesize : 16
+figure.titlesize : 14
 
 lines.linewidth : 2
 lines.markersize : 2
 
-xtick.labelsize : 13
-ytick.labelsize : 13
+xtick.labelsize : 11
+ytick.labelsize : 11
 
 savefig.format : svg
 savefig.bbox : tight
