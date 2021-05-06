@@ -3,11 +3,25 @@ import scipy.signal
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import welch, find_peaks
+import cmath as cm
+
+def remove_time(data):
+    # Removes the time column and returns the time period and the data
+
+    if isinstance(data, pd.DataFrame):
+        dt = data.iloc[1, 0] - data.iloc[0, 0]
+        data = data.iloc[:, 1:]
+
+    if isinstance(data, np.ndarray):
+        dt = data[1, 0] - data[0, 0]
+        data = data[:, 1:]
+
+    return data, dt
 
 def energy_normalize(data):
     col_energy = np.square(data).sum(axis=0)  # sum squares over the rows
     energy_normalized_data = data / np.sqrt(col_energy)  # divide every column by the sqrt of the respective energy
-    # energy_normalized_data *= 1e7  # set the column's energy (1e0 would be too low)
+    energy_normalized_data *= 1e7  # set the column's energy (1e0 would be too low)
     return energy_normalized_data
 
 def cutoff_ends(data, cutoff):
@@ -32,6 +46,22 @@ def ifft(x_hat):
     x = np.real(np.fft.ifft(x_hat, axis=0))
     return x
 
+# Calculates the spectral derivative from x
+def compute_spectral_derivative(x, dt):
+    """
+    x (DataFrame): State measurements
+    dt (Float): Time step size
+    """
+    if isinstance(x, pd.DataFrame):
+        x = np.array(x)
+
+    omega, x_hat = fft(x, dt)
+
+    dxdt_hat = 1j * omega * x_hat
+    dxdt_hat = np.fft.ifftshift(dxdt_hat, axes=0)
+    dxdt = np.real(np.fft.ifft(dxdt_hat, axis=0))
+
+    return dxdt
 
 def create_df(data, var_label='x'):
     try:
@@ -47,152 +77,106 @@ def create_df(data, var_label='x'):
 
     return df
 
-
-
-class Signal:
-
-    def __init__(self, dt):
-        self.dt = dt
-
-
-class StateSignal(Signal):
-    def __init__(self, state_data, dt, noise_power=0, relative_noise_power=0):
-        """
-
-        Args:
-            state_data (np.array): First column is time measurements, other columns are state measurements
-            relative_noise_power: How much white noise should be added to the measurements. A relative noise
-                power of 0.1 means that the stdev of the additive white noise for each signal will be 10% of
-                the signal's stdev.
-        """
-        Signal.__init__(self, dt)
-
-        # Signal dimensionality (number of columns)
-        self.dims = state_data.shape[1]
-
-        # DF of the original signal
-        self.values_clean = create_df(state_data)
-
-        # The DataFrame self.x is calculated from self.x_clean via
-        # the noise_power setter method
-        self.values = None
-        self.relative_noise_power = relative_noise_power
-
-    @property
-    def relative_noise_power(self):
-        return self._relative_noise_power
-
-    @relative_noise_power.setter
-    def relative_noise_power(self, noise_power):
-        state_signal_powers = self.values_clean.std()
-        additive_noise = np.vstack(noise_power * state_signal_powers).T * np.random.randn(*self.values_clean.shape)
-        x = self.values_clean + additive_noise
-        self.values = create_df(x)
-        self._relative_noise_power = noise_power
-
-class StateDerivativeSignal(Signal):
-    def __init__(self, state_signal, method='spectral', kernel_size=11, ):
-        """
-
-        Args:
-            state_data (np.array): First column is time measurements, other columns are state measurements
-        """
-        Signal.__init__(self, state_signal.dt)
-
-        # Signal dimensionality (number of columns)
-        self.dims = state_signal.values.shape[1]
-
-        # The DataFrame self.dx is calculated via numerical differentiation
-        if method=='spectral':
-            Differentiator = SpectralDifferentiator()
-            self.values = Differentiator.compute_derivative(state_signal.values, self.dt)
-            Filter = KernelFilter(kernel='hann', kernel_size=kernel_size)
-            self.values = Filter.filter(self.values, var_label='dx')
-
-        if method=='finitediff':
-            Differentiator = FiniteDifferentiator()
-            self.values = Differentiator.compute_derivative(state_signal.values, self.dt)
-
-
-class ForcingSignal(Signal):
-    def __init__(self, forcing_data, dt):
-        Signal.__init__(self, dt)
-
-        try:
-            self.dims = forcing_data.shape[1]
-        except IndexError:
-            self.dims = 1
-
-        self.values = create_df(forcing_data, var_label='u')
+def add_noise(data, noise_power):
+    additive_noise = noise_power * np.random.randn(*data.shape)
+    data_noisy = data + additive_noise
+    data_noisy = create_df(data_noisy)
+    return data_noisy
 
 class SpectralFilter:
-    def __init__(self, X,  plot=False):
+    def __init__(self, X, dt, plot=False):
+        #
 
         self.X = X
-        self.dt = X.dt
-        self.N = X.values.shape[1]
+        self.dt = dt
+
+        shape = X.shape
+        print(shape)
+        print(len(shape))
+        if len(shape) == 1:
+            self.cols = 1
+        elif len(shape) == 2:
+            self.cols = shape[1]
+        else:
+            raise ValueError
+
+        self.plot = plot
 
         self.cutoffs = []
 
+    def find_cutoffs_and_meanlogpower(self, k=0.95, freq_multiplier=1):
 
-    def find_cutoffs(self, k=0.8, gamma=1.5, plot=True):
+        if self.plot:
+            fig, axs = plt.subplots(nrows=self.X.shape[1], sharex=True, tight_layout=True)
 
-        self.cutoffs = []
+        # for each col in X
+        for i in range(self.cols):
+            sig = self.X.iloc[:, i]
 
-        if plot:
-            fig, axs = plt.subplots(nrows=self.N, sharex=True, tight_layout=True)
-        for i in range(self.N):
+            # Calculate the periodogram (PSD) using Welch's method
+            f, Pxx = welch(sig, fs=1. / self.dt, nperseg=1024)
+            f = f * 2 * np.pi  # Convert frequency from Hz to rad/s
 
-            f, Pxx = welch(self.X.values.values[:, i], fs=1. / self.dt, nperseg=1024)
-            f = f * 2 * np.pi  # Convert from Hz to rad/s
+            # Find the cutoff frequence
             Pxx_meanlog = np.exp(k * np.mean(np.log(Pxx)))
-            # Pxx_diff = np.exp(np.diff(np.log(Pxx)))
-            f_cutoff_idx = np.where(np.diff(np.sign(np.log(Pxx) - np.log(Pxx_meanlog))))[-1] + 1
-            f_cutoff = f[f_cutoff_idx] * gamma  # Multiply the cutoff frequency
-            self.cutoffs.append({'idx': f_cutoff_idx, 'cutoff': f_cutoff})
-            # f_f, Pxx_f = welch(X.values.values[:, i], 1/dt)
+            f_cutoff_idx = np.where(np.diff(np.sign(np.log(Pxx) - np.log(Pxx_meanlog))))[-1][-1] + 1
+            f_cutoff = f[f_cutoff_idx] * freq_multiplier  # Multiply the cutoff frequency
+            self.cutoffs.append(f_cutoff)
+            self.meanlogpower = Pxx_meanlog
 
-            if plot:
+            if self.plot:
                 if i == 0:
-                    title = 'Power Spectral Density from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
+                    title = 'Periodogram from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
                 else:
                     title = '$ \hat{}_{} $'.format('x', str(i + 1))
                 axs[i].set_title(rf'{title}')
-                axs[i].semilogy(f, Pxx, linewidth=3, alpha=0.8, marker='o')
-                # axs[i].semilogy(f[:-1], Pxx_diff, linewidth=2, alpha=0.7)
-
+                axs[i].semilogy(f, Pxx, linewidth=3, alpha=0.9, marker='o')
                 axs[i].hlines(Pxx_meanlog, xmin=0, xmax=f[-1],
-                              linestyle=':', color='black')
-                axs[i].vlines([f_cutoff, f_cutoff / gamma], ymin=Pxx.min(), ymax=Pxx.max(),
-                              linestyle='-.', color='black')
-                # axs[i].semilogy(f_f, Pxx_f, linewidth=2, alpha=0.7)
-                axs[i].set_ylabel(r'$PSD$')
+                              linestyle=':', color='black',
+                              alpha=0.7)
+                axs[i].vlines([f_cutoff],
+                              ymin=Pxx.min(), ymax=Pxx.max(),
+                              linestyle=':', color='black', alpha=0.9)
+                axs[i].vlines([f_cutoff / freq_multiplier],
+                              ymin=Pxx.min(), ymax=Pxx.max(),
+                              linestyle='-.', color='black', alpha=0.9)
+                axs[i].set_ylabel(r'$Power$')
                 axs[self.N - 1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-        if plot:
+
+        if self.plot:
             plt.show()
 
-    def filter(self, x=None, dt=None, var_label='x', plot=True):
-        if x is None:
-            x = self.X.values.values
-            dt = self.X.dt
+    def filter(self, var_label='x'):
 
+        x = self.X.values
+        dt = self.dt
 
         # Calculate frequencies and Fourier coeffs
         omega, x_hat = fft(x, dt)
+
         # Initialize array for filtered data in Fourier domain
         x_hat_f = np.zeros_like(x, dtype='complex')
 
-        N = x.shape[1] # Number of signals
-        if plot:
+        shape = x.shape
+        print(shape)
+        print(len(shape))
+        if len(shape) == 1:
+            N = 1
+        elif len(shape) == 2:
+            N = shape[1]
+        else:
+            raise ValueError
+        if self.plot:
             fig, axs = plt.subplots(nrows=N, tight_layout=True, sharex=True)
+
         for col in range(N):
             # Find frequency index of the respective cutoff frequency
-            idx_r = np.argmin(np.abs(omega - self.cutoffs[col]['cutoff']))
+            idx_r = np.argmin(np.abs(omega - self.cutoffs[col]))
             idx_l = len(omega) - idx_r
 
             x_hat_f[idx_l:idx_r, col] = x_hat[idx_l:idx_r, col]
 
-            if plot:
+            if self.plot:
                 x_hat_abs = np.abs(x_hat[:, col])
                 x_hat_f_abs = np.abs(x_hat_f[:, col])
                 title = '$ \hat{}_{} $'.format('x', str(col+1))
@@ -204,13 +188,44 @@ class SpectralFilter:
                 axs[col].vlines([omega[idx_r], omega[idx_l]], ymin=np.min(x_hat_abs), ymax=np.max(x_hat_abs),
                                 linestyle=':', color='black')
                 axs[N-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-                axs[col].set_ylabel(r'$PSD$')
+                axs[col].set_ylabel(r'$Power$')
 
                 plt.show()
 
         self.X_filtered = create_df(ifft(x_hat_f), var_label=var_label)
         return self.X_filtered
 
+    def decrease_modulus(self, x=None, dt=None, var_label='x'):
+        if x is None:
+            x = self.X.values
+            dt = self.dt
+
+        # Calculate frequencies and Fourier coeffs
+        omega, x_hat = fft(x, dt)
+
+        # Initialize array for filtered data in Fourier domain
+        x_hat_f = np.zeros_like(x, dtype='complex')
+
+        N = x.shape[1] # Number of signals
+        for col in range(N):
+            # Find frequency index of the respective cutoff frequency
+            # idx_r = np.argmin(np.abs(omega - self.cutoffs[col]))
+            # idx_l = len(omega) - idx_r
+
+            # x_hat_f[idx_l:idx_r, col] = x_hat[idx_l:idx_r, col]
+            x_hat_polar = [cm.polar(x_h) for x_h in x_hat[:, col]]
+            mean_rad = np.exp(self.meanlogpower)
+            # x_hat_f_polar = np.array([(rad-mean_rad, phs) for rad,phs in x_hat_polar])
+            x_hat_f_polar = np.empty_like(x_hat_polar)
+            for xh in x_hat_polar:
+
+                x_hat_f[:, col] = [cm.rect(rad, phs) for rad,phs in x_hat_f_polar]
+
+        self.X_filtered = create_df(ifft(x_hat_f), var_label=var_label)
+        return self.X_filtered
+
+    # Should remove higher frequency peaks in the PSD
+    # not very reliable
     def remove_peaks(self, x=None, var_label='x', plot=True):
         if x is None:
             x = self.X.values.values
@@ -252,31 +267,10 @@ class SpectralFilter:
         return self.X_filtered
 
 
-
 class KernelFilter:
     def __init__(self, kernel='hann', kernel_size=8):
         self.kernel = kernel
         self.kernel_size = kernel_size
-
-    @property
-    def kernel(self):
-        return self.__kernel
-
-
-    @kernel.setter
-    def kernel(self, kernel):
-        # Kernel filtering
-        self.__kernel = kernel  # Which window should be used (from scipy.signals.windows)
-
-
-    @property
-    def kernel_size(self):
-        return self.__kernel_size
-
-
-    @kernel_size.setter
-    def kernel_size(self, kernel_size):
-        self.__kernel_size = kernel_size  # Size of the window
 
     # Convolution filtering
     def filter(self, x, var_label='x'):
@@ -294,81 +288,18 @@ class KernelFilter:
             0, x)
         return create_df(x_filtered, var_label=var_label)
 
-class SpectralDifferentiator:
-    def __init__(self):
-        pass
-
-    # Calculates the spectral derivative from self.x
-    def compute_derivative(self, x, dt, var_label='dx'):
-        """
-        x (DataFrame): State measurements
-        dt (Float): Time step size
-        """
-        n = x.shape[0]  # Number of samples
-        dims = x.shape[1]
-
-        # # Fourier coefficients
-        # x_hat = np.fft.fft(x, axis=0)
-        # x_hat = np.fft.fftshift(x_hat, axes=0)
-        #
-        # # Fourier frequencies
-        # omega = (2 * np.pi / L) * np.arange(-n / 2, n / 2)
-        # omega = omega[:, np.newaxis]
-        omega, x_hat = fft(x, dt)
-
-        # if self.spectral_cutoff:
-        #     # Create mask
-        #     mask = np.zeros([n, dims])
-        #     for idx, cutoff in enumerate(self.spectral_cutoff):
-        #         cutoff = n / 2 - cutoff * n
-        #         cutoff = int(cutoff)
-        #         mask[cutoff: -cutoff, idx] = 1  # Keep coeffs between cutoff indices
-            # Truncate Fourier coefficients
-            # x_hat = x_hat * mask
-
-        dxdt_hat = 1j * omega * x_hat
-        dxdt_hat = np.fft.ifftshift(dxdt_hat, axes=0)
-        dxdt = np.real(np.fft.ifft(dxdt_hat, axis=0))
-        return create_df(dxdt, var_label=var_label)
-
-
-
-class FiniteDifferentiator:
-    def __init__(self):
-        """
-        TODO: Class hasn't been tested after code refactoring
-        """
-        pass
-
-    # Calculates the finite difference derivative
-    def compute_derivative(self, x, dt, var_label='dx', direction='forward'):
-        """
-        x (DataFrame): State measurements
-        dt (Float): Time step size
-        """
-        if direction == 'forward':
-            dxdt = (np.diff(x, axis=0)) / dt  # last value is missing
-            dxdt = np.vstack((dxdt, dxdt[-1, :]))
-            return create_df(dxdt, 'dx')
-        elif direction == 'backward':
-            x = np.flip(x.values, axis=0)
-            dxdt = (-np.diff(x, axis=0)) / dt
-            dxdt = np.flip(dxdt, axis=0)  # first value is missing
-            dxdt = np.vstack((dxdt[0, :], dxdt))
-            return create_df(dxdt, var_label=var_label)
-
-class ModelDerivative:
-    def __init__(self, model):
-        """
-        TODO: Class hasn't been tested after code refactoring
-        """
-        self.model = lambda x, u: model(0, x, u)  # assume time-invariant system
-
-    def exact_derivative(self, x, u, var_label='dx'):
-        """
-        x (DataFrame): State measurements
-        u (DataFrame): System inputs
-        """
-        dxdt = np.array([*map(self.model, x.values, u.values)])
-        return create_df(dxdt, var_label=var_label)
-
+def compute_finite_differences(x, dt, direction='forward'):
+    """
+    x (DataFrame): State measurements
+    dt (Float): Time step size
+    """
+    if direction == 'forward':
+        dxdt = (np.diff(x, axis=0)) / dt  # last value is missing
+        dxdt = np.vstack((dxdt, dxdt[-1, :]))
+        return dxdt
+    elif direction == 'backward':
+        x = np.flip(x.values, axis=0)
+        dxdt = (-np.diff(x, axis=0)) / dt
+        dxdt = np.flip(dxdt, axis=0)  # first value is missing
+        dxdt = np.vstack((dxdt[0, :], dxdt))
+        return dxdt

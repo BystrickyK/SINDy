@@ -18,50 +18,46 @@ from decimal import Decimal
 mpl.use('Qt5Agg')
 
 dirname = '.' + os.sep + 'singlePendulumCart' + os.sep + 'results' + os.sep
-filename = dirname + 'simdata_slow.csv'
-filename_val = dirname + 'simdata_val.csv'
+filename = dirname + 'singlePend.csv'
+filename_val = dirname + 'singlePend.csv'
 
+# Get training dataset
 sim_data = pd.read_csv(filename)
+sim_data, dt = remove_time(sim_data)
+# Append the mirrored version of the signal to deal with FFT Gibbs phenomena
 sim_data = pd.concat([sim_data, sim_data[::-1]]).reset_index(drop=True)
+sim_data = sim_data
 
-sim_data_val = pd.read_csv(filename_val)
-sim_data_val = pd.concat([sim_data_val, sim_data_val[::-1]]).reset_index(drop=True)
+N = sim_data.shape[0]
+step = 1
 
-dt = sim_data.iloc[1, 0] - sim_data.iloc[0, 0]
-
-# Generate a StateSignal object from the measurement data and add noise
-rnp = 0.2*np.array([0.02, 0.0001, 0.05, 0.05])
-Xm_train = StateSignal(sim_data.iloc[:, 1:-1], dt=dt, relative_noise_power=tuple(rnp))
-Xm_val = StateSignal(sim_data_val.iloc[:, 1:-1], dt=dt, relative_noise_power=tuple(rnp))
 
 # Real signals
-Xc_train = StateSignal(Xm_train.values_clean, dt)  # Use clean data
-DXc_train = StateDerivativeSignal(Xc_train, method='finitediff')
+Xt = sim_data.iloc[:, :-1]
+Xt = create_df(Xt, 'x')
 
-X = Xc_train.values
-DX = DXc_train.values
+DXt = compute_spectral_derivative(Xt, dt)
+DXt = create_df(DXt, 'dx')
+
+DXt2 = compute_finite_differences(Xt, dt)
+DXt2 = create_df(DXt2, 'dx')
+
+u = sim_data.iloc[:, -1]
+u = pd.DataFrame(u)
+u.columns = ['u']
+u = u.iloc[:N//2:step, :].reset_index(drop=True)
+
+sim_data = sim_data.iloc[:N//2:step, :].values
+Xt = Xt.iloc[:N//2:step, :].reset_index(drop=True)
+DXt = DXt.iloc[:N//2:step, :].reset_index(drop=True)
+
+# fig, axs = plt.subplots(nrows=2, tight_layout=True)
+# axs[0].plot(Xt.iloc[:,2])
+# axs[0].plot(DXt.iloc[:,0])
+# axs[1].plot(Xt.iloc[:,3])
+# axs[1].plot(DXt.iloc[:,1])
 #%%
-# state_data = X.x
-N = X.shape[0]
-
-step = 10
-
-u_train = ForcingSignal(sim_data.iloc[:, -1], dt)
-u_val = ForcingSignal(sim_data_val.iloc[:, -1], dt)
-
-state_data_train = X.iloc[0:int(N/2):step, :].reset_index(drop=True)
-state_derivative_data_train = DX.iloc[0:int(N/2):step, :].reset_index(drop=True)
-input_data_train = u_train.values.iloc[0:int(N/2):step, :].reset_index(drop=True)
-training_data = {'X':state_data_train, 'DX':state_derivative_data_train, 'u':input_data_train}
-
-state_data_val = X.iloc[0:int(N/2):step, :].reset_index(drop=True)
-state_derivative_data_val = DX.iloc[0:int(N/2):step, :].reset_index(drop=True)
-input_data_val = u_val.values.iloc[0:int(N/2):step, :].reset_index(drop=True)
-validation_data = {'X':state_data_val, 'DX':state_derivative_data_val, 'u':input_data_val}
-
-dim = state_data_train.shape[1]
-
-#%%
+data = {'X': Xt, 'DX': DXt, 'u': u}
 def create_basis(data):
     # identity = pd.Series((data['u'].values*0+1).T[0], data['u'].index, name='1')
     trig_basis_part = trigonometric_library(data['X'].iloc[:, 1])
@@ -69,23 +65,12 @@ def create_basis(data):
                              data['DX'].iloc[:, [2,3]]], axis=1)
     return theta_basis
 
-theta_basis_train = create_basis(training_data)
-theta_basis_validation = create_basis(validation_data)
+theta_basis = create_basis(data)
 
-# scnd = product_library(theta_basis, theta_basis)
-# thrd = product_library(scnd, theta_basis)
-# frth = product_library(thrd, theta_basis)
-# theta = pd.concat([theta_basis, scnd, thrd, frth, identity], axis=1)
-theta_train = poly_library(theta_basis_train, (1,2,3,4))
-theta_validation = poly_library(theta_basis_validation, (1,2,3,4))
+theta_train = poly_library(theta_basis, (1,2,3,4))
+# theta_validation = poly_library(theta_basis, (1,2,3,4))
 #%%
 
-
-# Remove terms which contain a single basis variable with a power higher than 2
-# and terms which contain more than 3 basis terms
-    # for example: x_3*x_3*x_3*x_1 contains x_3 to the third power -> is removed
-    # or: sin(x_2)*sin(x_2)*sin(x_2) contains sin(x_2) to the third power -> is removed
-    # or: sin(x_2)*cos(x_2)*u*x_4 contains 4 basis terms -> is removed
 def drop_bad_terms(theta):
     bad_idx = np.array([False for i in theta.columns])
     for i, term in enumerate(theta.columns):
@@ -101,8 +86,10 @@ def drop_bad_terms(theta):
             continue
         if (('x_3' in unique_terms and 'u' in unique_terms) or
             ('x_4' in unique_terms and 'u' in unique_terms) or
-            ('x_4' in unique_terms and 'x_3' in unique_terms) or
-            ('dx_3' in unique_terms and 'dx_4' in unique_terms)):
+            ('dx_3' in unique_terms and 'u' in unique_terms) or
+            ('dx_4' in unique_terms and 'u' in unique_terms) or
+            ('dx_3' in unique_terms and 'dx_4' in unique_terms) or
+            ('x_4' in unique_terms and 'x_3' in unique_terms)):
             bad_idx[i] = True
             continue
             # if sin(x_2) occurs more than once OR
@@ -110,7 +97,9 @@ def drop_bad_terms(theta):
             # if there are two or more occurences of u
         if ((terms_occurences.get('sin(x_2)', False))>1 or
                 (terms_occurences.get('sin(x_2)', 0) + terms_occurences.get('cos(x_2)', 0))>2 or
-                (terms_occurences.get('u', 0))>1):
+                (terms_occurences.get('u', 0))>1 or
+                (terms_occurences.get('dx_3', False))>1 or
+                (terms_occurences.get('dx_4', False))>1):
             bad_idx[i] = True
             continue
 
@@ -119,42 +108,35 @@ def drop_bad_terms(theta):
     return theta
 
 theta_train = drop_bad_terms(theta_train)
-theta_validation = drop_bad_terms(theta_validation)
 
-theta_train.iloc[:,0] = 100
-theta_validation.iloc[:,0] = 100
-theta_train.iloc[0,0] = 100.001
-theta_validation.iloc[0,0] = 100.001
+theta_train.iloc[:,0] = 1
+theta_train.iloc[0,0] = 1.00001
 
 # %% Compute the solution or retrieve it from cache
 
 rewrite = True # Should the cache be rewritten
-eqns_to_identify = ['dx_3']  # State derivatives whose equation we want to identify
-cache_str = 'singlePendSolutionsNoisyDoubleDiff'
+eqns_to_identify = ['dx_3', 'dx_4']  # State derivatives whose equation we want to identify
+cache_str = 'singlePendClean'
 eqns_models = {}
 for eqn in eqns_to_identify:
     # find cols with other state derivatives than the one currently being identified
     idx = np.array([('d' in col and eqn not in col) for col in theta_train.columns])
+    print(f'ii {np.sum(idx)}')
+
     # Construct a library for identifying the desired equation
     theta_hat_train = theta_train.loc[:, ~idx]
-    theta_hat_validation = theta_validation.loc[:, ~idx]
-    # theta_hat_train = energy_normalize(theta_train.loc[:, ~idx])  # and keep all cols except them
-    # theta_hat_validation = energy_normalize(theta_validation.loc[:, ~idx])  # and keep all cols except them
-
-    # corr = theta_hat_train.corr()
-    # plot_corr(corr, theta_hat_train.columns, labels=False, ticks=True)
-    # plt.title(f"Correlation matrix of the function library for {eqn}")
-    # plt.show()
+    theta_hat_validation = theta_train.loc[:, ~idx]
 
     eqns_models[eqn] = {}
     eqns_models[eqn]['theta_train'] = theta_hat_train
     eqns_models[eqn]['theta_val'] = theta_hat_validation
 
+    # corr = theta_hat_train.corr()
+    # plot_corr(corr, theta_hat_train.columns, labels=False, ticks=True)
+
     # svd = np.linalg.svd(theta_hat_train.values, full_matrices=False)
     # svd = {'U':svd[2], 'Sigma':np.diag(svd[1]), 'V':svd[0]}
     # plot_svd(svd)
-
-
 
     cachename = dirname + cache_str + '_' + eqn
 
@@ -165,74 +147,51 @@ for eqn in eqns_to_identify:
     else:
         print("No solution in cache, calculating solution from scratch.")
         EqnIdentifier = PI_Identifier(theta_hat_train, theta_hat_validation)
-        EqnIdentifier.set_thresh_range(lims=(0.0000001, 0.1), n=10)
-        EqnIdentifier.create_models(n_models=theta_hat_train.shape[1], iters=7, shuffle=False)
-        eqns_models[eqn]['models'] = EqnIdentifier.all_models
+        EqnIdentifier.set_thresh_range(lims=(0.00001, 0.025), n=5)
+        EqnIdentifier.create_models(n_models=theta_hat_train.shape[1], iters=8, shuffle=False)
+        eqns_models[eqn]['models'] = EqnIdentifier.models
         with open(cachename, 'wb') as f:
             pickle.dump(eqns_models[eqn], f)
+
 # %%
 dynamic_model = {}
 for eqn_str, eqn_model in eqns_models.items():
-    theta = eqn_model['theta_train']
+    theta_train = eqn_model['theta_train']
     theta_val = eqn_model['theta_val']
+    col_names = theta_train.columns
     models = eqn_model['models']
     dynamic_model[eqn_str] = {}
 
     # %% Remove duplicate models
-    models = process_models(models, theta.columns)
-    models = models.reset_index(drop=True)
-    # models = models.loc[models.valfit > 0.50, :].reset_index(drop=True)
-    # plot_implicit_sols(models, theta.columns, show_labels=False)
-    # Calculate RMSE for each model
-    models['rmse_val'] = 0  # Create new column
-    models['rmse_train'] = 0  # Create new column
-    for idx, mdl in models.iterrows():
-        rmse_train = calculate_rmse(theta, mdl['sol'], 0)
-        models.loc[idx, 'rmse_train'] = rmse_train
-        rmse_val = calculate_rmse(theta_val, mdl['sol'], 0)
-        models.loc[idx, 'rmse_val'] = rmse_val
-
-    # pareto_front(models, use_train=True, title=eqn_str)
-    # pareto_front(models, use_train=False, title=eqn_str)
-
-    eqns = [[*zip(np.round(model.sol[model.active], 3), theta.columns[model.active])]
-            for idx, model in models.iterrows()]
-    eqns = [[str(par) + '*' + term for par, term in eqn] for eqn in eqns]
-    eqns = [' + '.join(eqn) for eqn in eqns]
-
-    idx = ['d' in eqn for eqn in eqns]
-    models = models.loc[idx, :].reset_index()
-
-    idx = []
-    # %% Visualize the solutions -> calculate and plot activation distance matrix
-    # and plot the matrix of implicit solutions
-    dist = distance_matrix(models, plot=False)
-
+    models = unique_models(models)
+    models = model_activations(models)
     # %% Look for consistent models by finding clusters in the term activation space
-    models = consistent_models(models, dist,
-                               min_cluster_size=3)
+    models = consistent_models(models, min_cluster_size=4)
 
-    plot_implicit_sols(models, theta.columns, show_labels=False)
+    models = model_equation_strings(models, col_names)
+    vars = ['x_1', 'x_2', 'x_3', 'x_4', 'u']
+    lhsvar = eqn_str
+    # Create symbolic implicit equations column
+    models = model_symbolic_implicit_eqns(models, lhsvar)
+
+    # Calculate AIC for each model
+    models = model_aic(models, theta_val)
+    # Drop obviously bad models
+    aic_thresh = models['aic'].max() * 0.5
+    models = models[ models['aic'] < aic_thresh ] # Keep models under the threshold
+
+    models = model_symbolic_eqn(models, lhsvar)
+    models = model_lambdify_eqn(models, vars)
+    models = models.reset_index(drop=True)
+
+    # %%
+    plot_implicit_sols(models, col_names, show_labels=False)
     plt.show()
-    # pareto_front(models)
-    # plt.show()
 
     # %% Decompose one of the models
     # choice = int(input("Choose model index:"))
-    choice = models.valerror.argmin()
-    model = models.iloc[choice, :]
-
-    trainerror = model['trainerror']
-    valerror = model['valerror']
-    active_terms = theta.iloc[:, model['active']].values
-    term_labels = theta.columns[model['active']]
-    parameters = np.array(model['sol'])[model['active']]
-    signals = parameters * active_terms
-    solution_string = ' + \n'.join(
-        ['$' + str(round(par, 3)) + '\;' + term + '$' for par, term in zip(parameters, term_labels)]) + '\n$= 0$'
-
-    dynamic_model[eqn_str]['error'] = valerror
-    dynamic_model[eqn_str]['term_labels'] = term_labels
+    choice = models['aic'].argmin()
+    best_model = models.loc[choice]
 
     # fig, ax = plt.subplots(nrows=2, ncols=2, tight_layout=True)
     # ax = np.reshape(ax, [-1, ])
@@ -259,26 +218,25 @@ for eqn_str, eqn_model in eqns_models.items():
     # plt.show()
 
     # %%
-    # Construct implicit function string
-    eqn = [*zip(np.round(model.sol[model.active], 3), theta.columns[model.active])]
-    eqn = [str(par) + '*' + term for par, term in eqn]
-    eqn = ' + '.join(eqn)
-    # Parse the string into a sympy expression
-    symeqn = sp.parse_expr(eqn)
-    symeqn = sp.solve(symeqn, eqn_str)[0]
-    # Lambdify the sympy expression for evaluation
-    vars = ['x_1', 'x_2', 'x_3', 'x_4', 'u']
-    vars = [sp.parse_expr(var) for var in vars]
-    lameqn = sp.lambdify(vars, symeqn)
-    eqn_lambda = lambda row: lameqn(*row)  # one input in the form [x1, x2, ..., xn, u]
-    dynamic_model[eqn_str]['lmbda'] = eqn_lambda
-    dynamic_model[eqn_str]['symeqn'] = symeqn
-    dynamic_model[eqn_str]['str'] = symeqn
+    dynamic_model[eqn_str]['symeqn'] = best_model['eqn_sym']
+    dynamic_model[eqn_str]['str'] = best_model['eqn_sym_implicit']
+    dynamic_model[eqn_str]['models'] = models
+    dynamic_model[eqn_str]['choice'] = best_model
 
-    data = pd.concat([validation_data['X'], validation_data['u']], axis=1)
-    eqn_data = data.apply(eqn_lambda, axis=1)
+    # data = pd.concat([validation_data['X'], validation_data['u']], axis=1)
+    # eqn_data = data.apply(eqn_lambda, axis=1)
+    #
+    # print(f'Eqn: {eqn_str}\nEquation errors: {trainerror} | {valerror}\n')
 
-    print(f'Eqn: {eqn_str}\nEquation errors: {trainerror} | {valerror}\n')
+    dxmodel = np.apply_along_axis(best_model['eqn_lambda'], axis=1, arr=sim_data)
+    dxreal = DXt.loc[:, eqn_str]
+
+    plt.figure()
+    plt.plot(dxmodel, alpha=0.8)
+    plt.plot(dxreal, alpha=0.8)
+    plt.legend(['Model', 'Real'])
+    plt.title(eqn_str)
+    plt.show()
 
 symeqns = [dynamic_model[eqn]['symeqn'] for eqn in eqns_to_identify]
 codegen(('identified_model2', symeqns),

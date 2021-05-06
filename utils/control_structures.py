@@ -14,3 +14,15 @@ def timeout(seconds):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
+
+
+symbol_library = {0: '\\',
+                  1: '|',
+                  2: '/',
+                  3: '|'}
+def time_symbol():
+    t = round(time.time()*10)
+    tmod = t % 4
+    return symbol_library[tmod]
+
+

@@ -143,11 +143,11 @@ def plot_corr(corr, regressor_names, labels=True, ticks=True):
         if ticks:
             ax.set_yticks([*range(min(labelstr.shape))])
             ax.set_yticklabels(labelstr)
-            ax.yaxis.set_tick_params(rotation=0, labelsize=10)
+            ax.yaxis.set_tick_params(rotation=0, labelsize=20)
             ax.set_xticks([*range(min(labelstr.shape))])
             ax.set_xticklabels(labelstr)
-            ax.xaxis.set_tick_params(rotation=90, labelsize=10)
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, shrink=0.5)
+            ax.xaxis.set_tick_params(rotation=90, labelsize=20)
+        fig.colorbar(im, ax=ax, orientation='horizontal', fraction=0.046, pad=0.04, shrink=0.5)
         if labels:
             for (col, row), val in np.ndenumerate(corr):
                 ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
@@ -190,7 +190,7 @@ def plot_activation_dist_mat(dist_mat, lhs_guess_strings, labels=True):
 def plot_implicit_sols(models, theta_labels,
                        show_labels=False, axislabels=True):
 
-    sols = np.vstack(models['sol'].values)
+    sols = np.vstack(models['xi'].values)
     sols = np.array(sols).T
 
     theta_active = np.vstack(models['active'].values).any(axis=0)
@@ -198,19 +198,17 @@ def plot_implicit_sols(models, theta_labels,
     theta_labels = d_to_dot(latexify(theta_labels))
     sols = sols[theta_active, :]
 
-    trainerrors = models['rmse_train']
-    valerrors = models['rmse_val']
+    valerrors = models['val_metric']
 
-    lhs_labels = models['lhs'].values
+    lhs_labels = models['lhs_str'].values
     lhs_labels = latexify(lhs_labels)
     lhs_labels = d_to_dot(lhs_labels)
     indices = range(len(lhs_labels))
-    trainerror_str = [str(np.round(fit,2)) for fit in trainerrors]
     valerror_str = [str(np.round(fit,2)) for fit in valerrors]
     # lhs_labels = [r' | '.join([lhs, str(trainerror), str(valerror),
     #                            ':'.join(['idx',str(idx)])]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
     lhs_labels = [r' | '.join([str(idx), lhs, str(valerror),
-                               ]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
+                               ]) for idx,valerror,lhs in zip(indices, valerror_str, lhs_labels)]
 
     figsize = tuple(np.array(sols.shape) * 0.22 + 3)
     if figsize[1] > 70:
@@ -227,7 +225,7 @@ def plot_implicit_sols(models, theta_labels,
     fig, ax = plt.subplots(1, 1,
                            figsize=figsize, tight_layout=True)
     with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
-        ax.matshow(sols.T, cmap=colormap, vmin=-0.01, vmax=0.01)
+        ax.matshow(sols.T, cmap=colormap, vmin=-0.0000001, vmax=0.0000001)
     if axislabels:
         ax.set_yticks([*range(sols.shape[1])])
         ax.set_yticklabels(lhs_labels)
@@ -420,3 +418,16 @@ def plot_dendrogram(model, **kwargs):
     # Plot the corresponding dendrogram
     dendrogram(linkage_matrix, **kwargs)
 
+def compare_signals(data1, data2, legend_str, ylabels):
+
+    with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
+        fig, axs = plt.subplots(nrows=2, tight_layout=True, sharex=True)
+        axs[0].plot(data1.iloc[:, 0], alpha=0.7, linewidth=2, color='tab:blue')
+        axs[0].plot(data2.iloc[:, 0], alpha=1, linewidth=2, color='tab:green')
+        axs[0].set_ylabel(ylabels[0])
+        axs[0].legend(legend_str)
+        axs[1].plot(data1.iloc[:, 1], alpha=0.7, linewidth=2, color='tab:blue')
+        axs[1].plot(data2.iloc[:, 1], alpha=1, linewidth=2, color='tab:green')
+        axs[1].set_xlabel('Sample index $k$')
+        axs[1].set_ylabel(ylabels[1])
+        axs[1].legend(legend_str)

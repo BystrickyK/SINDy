@@ -1,4 +1,5 @@
 %% Initialize
+disp("Initializing...")
 clear all;
 close all;
 clc;
@@ -8,11 +9,13 @@ savefile = 'singlePend.csv';
 l_1 = 0.3;
 a_1 = 0.18;
 m_1 = 1;
-I_1 = 0.6*m_1*a_1^2;
-b_1 = 0.15;
-b_c = 15;
+I_1 = 0.7*m_1*a_1^2;
+b_1 = 0.01;
+b_c = 10;
+% m_c = 0.8;
 m_c = 0.8;
 g = 9.81;
+
 
 params = [m_1,...             % pendulum weights
             I_1,...           % penndulum moments of inertia around CoMs
@@ -25,29 +28,36 @@ params = [m_1,...             % pendulum weights
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 120;     % simulation time
-f_s = 100;     % sampling
-f_c = 3;        % cutoff
-u_a = 3;      % input power
+t_end = 6;     % simulation time
+f_s = 750;     % sampling
+f_c = 2;        % cutoff
+u_a = 2;      % input power
+n = t_end * f_s;
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
     u_t = 0:(1/f_s):t_end;
+    squarewave = ((square(u_t, 95)+1)/2)';
     u = u_a * (rand(length(u_t), 1) - 0.5);
     u = filter(filt_b, filt_a, u);  % defines the cart position!
-    u(1:200) = 0;
-    u(end-200:end) = 0;
-    limit = 0.3;
+    u = u .* squarewave;
+    
+    squarewave = ones(size(u));
+    squarewave(1:end/3) = 0.15;
+    u = u .* squarewave;
+
+    limit = 3000;
     u(u>limit) = limit;
     u(u<(-limit)) = -limit;  % ensures that the cart position doesn't go much further than 0.5
-    u = filter(filt_b, 0.5*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
-    u = diff(u)/(1/f_s);   % get cart velocity by differentiation!
+    u = filter(filt_b, 0.125*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
+    u = diff(u)/(1/f_s);   % get cart velocity by differentiation
     du = diff(u)/(1/f_s);   % get cart acceleration == input signal
     
     du(end+1: end+2) = du(end); % extend the input signal to fix the signal length
     
-    % define the input signal as a time-dependent function
+%     define the input signal as a time-dependent function
     u_f = @(t) interp1(u_t, du, t);
+%     u_f = @(t) interp1(u_t, u, t);
 
 %% Solve
 disp("Solving...")
@@ -55,7 +65,7 @@ disp("Solving...")
 % Create system of ODE functions for the solver
 odefun = @(t, X)singlePendCartFull(t, X, u_f, params);
 
-x0 = [0, pi, 0, 0]; % initial conditions
+x0 = [0, pi*30/32, 0, 0]; % initial conditions
 tspan = [0 t_end]; % time span
 
 % Solve the system of ODEs
@@ -65,7 +75,7 @@ toc
 
 % x = (logspace(0, 0.3, 1200) - 1) * t_end;
 % x = linspace(0, t_end, 1000);
-x = 0:0.001:t_end;
+x = 0:1/f_s:t_end;
 y = deval(sol, x);
 results_true = array2table([x', y', u_f(x)']);
 results_true.Properties.VariableNames = {'t', 's', 'phi1', 'Ds', 'Dphi1', 'u'};
@@ -102,20 +112,25 @@ hold on
 
 state_vars = results_true.Properties.VariableNames(2:end-1);
 tile_locs = [3, 7, 4, 8];
+ylabels = {'$x_1\,[m]$','$x_2\,[rad]$','$x_3\,[m\,s^{-1}]$','$x_4\,[rad\,s^{-1}]$'};
 for i = 1:length(state_vars)
     disp(i)
     var = state_vars{i};
     ax(i) = nexttile(tile_locs(i));
-    ylabel(var);
+    ax(i).YLabel.Interpreter = 'latex';    
+    ax(i).YLabel.String = ylabels{i};
+    ax(i).YLabel.FontSize = 20;
+    lx(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'blue', 'LineStyle', ':');
     lx_true(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'red');
     xlim(tspan);
+%     ylim([ min(results.(var)) max(results.(var))]);
     grid on
 end
 
 
 frames = [getframe(h)];
 
-for k = 1:60:length(q_true)
+for k = 1:12:length(q_true)
     cla(a1)
     
     yline(a1, 0, 'k-', 'LineWidth', 1.5)

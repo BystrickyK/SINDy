@@ -2,19 +2,12 @@ from utils.function_libraries import *
 import numpy as np
 import pandas as pd
 
-def create_basis_singPend(data):
+def create_basis(data):
     # identity = pd.Series((data['u'].values*0+1).T[0], data['u'].index, name='1')
     trig_basis_part = trigonometric_library(data['X'].iloc[:, 1])
     theta_basis = pd.concat([data['X'].iloc[:, [2,3]], trig_basis_part, data['u'],
                              data['DX'].iloc[:, [2,3]]], axis=1)
     return theta_basis
-
-def create_basis_doubPend(data):
-    trig_basis_part = trigonometric_library(data['X'].iloc[:, [1, 2]])
-    theta_basis = pd.concat([data['X'].iloc[:, [3, 4, 5]], trig_basis_part, data['u'],
-                             data['DX'].iloc[:, [3, 4, 5]]], axis=1)
-    return theta_basis
-
 
 def drop_bad_terms(theta):
     bad_idx = np.array([False for i in theta.columns])

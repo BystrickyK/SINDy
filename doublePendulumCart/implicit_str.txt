@@ -1,6 +1,0 @@
-X4(t) - dX1(t)
-X5(t) - dX2(t)
-X6(t) - dX3(t)
-u(t) - dX4(t)
-2*X6(t) - sin(X2(t) - 2*X3(t))/2 - 4*X5(t) - (7*sin(X2(t)))/2 - (11*dX5(t))/2 + (cos(X2(t) - 2*X3(t))*u(t))/2 + (cos(2*X2(t) - 2*X3(t))*dX5(t))/2 - 2*sin(X2(t) - X3(t))*X6(t)^2 - (7*cos(X2(t))*u(t))/2 - (sin(2*X2(t) - 2*X3(t))*X5(t)^2)/2 - cos(X2(t) - X3(t))*X5(t) + cos(X2(t) - X3(t))*X6(t)
-sin(2*X2(t) - X3(t)) - 2*sin(X3(t)) + 3*X5(t) - 3*X6(t) - (11*dX6(t))/2 + (cos(2*X2(t) - 2*X3(t))*dX6(t))/2 + 3*sin(X2(t) - X3(t))*X5(t)^2 + cos(2*X2(t) - X3(t))*u(t) - 2*cos(X3(t))*u(t) + (sin(2*X2(t) - 2*X3(t))*X6(t)^2)/2 + 2*cos(X2(t) - X3(t))*X5(t) - cos(X2(t) - X3(t))*X6(t)

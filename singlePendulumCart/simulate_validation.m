@@ -8,9 +8,10 @@ clc;
 l_1 = 0.3;
 a_1 = 0.18;
 m_1 = 1;
-I_1 = 0.6*m_1*a_1^2;
-b_1 = 0.15;
-b_c = 15;
+I_1 = 0.7*m_1*a_1^2;
+b_1 = 0.01;
+b_c = 10;
+% m_c = 0.8;
 m_c = 0.8;
 g = 9.81;
 
@@ -25,28 +26,36 @@ params = [m_1,...             % pendulum weights
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 20;     % simulation time
-f_s = 100;     % sampling
-f_c = 4;        % cutoff
-u_a = 0.1;      % input power
+t_end = 15;     % simulation time
+f_s = 1000;     % sampling
+f_c = 2.5;        % cutoff
+u_a = 2.5;      % input power
+
 
 % Random walk
     [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
     u_t = 0:(1/f_s):t_end;
+    squarewave = ((square(u_t, 95)+1)/2)';
     u = u_a * (rand(length(u_t), 1) - 0.5);
     u = filter(filt_b, filt_a, u);  % defines the cart position!
-    u(500:800) = 0;
-    limit = 0.3;
+    u = u .* squarewave;
+    
+    squarewave = ones(size(u));
+    squarewave(end*2/3:end) = 0.15;
+    u = u .* squarewave;
+
+    limit = 3000;
     u(u>limit) = limit;
     u(u<(-limit)) = -limit;  % ensures that the cart position doesn't go much further than 0.5
-    u = filter(filt_b, 0.5*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
-    u = diff(u)/(1/f_s);   % get cart velocity by differentiation!
+    u = filter(filt_b, 0.125*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
+    u = diff(u)/(1/f_s);   % get cart velocity by differentiation
     du = diff(u)/(1/f_s);   % get cart acceleration == input signal
     
     du(end+1: end+2) = du(end); % extend the input signal to fix the signal length
     
-    % define the input signal as a time-dependent function
+%     define the input signal as a time-dependent function
     u_f = @(t) interp1(u_t, du, t);
+%     u_f = @(t) interp1(u_t, u, t);
 
 %% Solve identified model
 disp("Solving...")
@@ -54,7 +63,7 @@ disp("Solving...")
 % Create system of ODE functions for the solver
 odefun = @(t, X)identified_model2(t, X, u_f);
 
-x0 = [0, pi/4, 0, 0]; % initial conditions
+x0 = [0, 0, 0, 0]; % initial conditions
 tspan = [0 t_end]; % time span
 
 % Solve the system of ODEs
@@ -106,18 +115,22 @@ t = tiledlayout(2,4, 'TileSpacing', 'tight', 'Padding', 'tight');
 
 a1 = nexttile([2 2]);
 grid on
-xlim([-1 1])
-ylim([-1 1])
+lims = 0.6;
+xlim([-lims lims])
+ylim([-lims lims])
 pbaspect([1 1 1])
 hold on
 
 state_vars = results.Properties.VariableNames(2:end-1);
 tile_locs = [3, 7, 4, 8];
+ylabels = {'$x_1\,[m]$','$x_2\,[rad]$','$x_3\,[m\,s^{-1}]$','$x_4\,[rad\,s^{-1}]$'};
 for i = 1:length(state_vars)
     disp(i)
     var = state_vars{i};
     ax(i) = nexttile(tile_locs(i));
-    ylabel(var);
+    ax(i).YLabel.Interpreter = 'latex';    
+    ax(i).YLabel.String = ylabels{i};
+    ax(i).YLabel.FontSize = 20;
     lx(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'blue', 'LineStyle', ':');
     lx_true(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'red');
     xlim(tspan);
@@ -128,7 +141,7 @@ end
 
 frames = [getframe(h)];
 
-for k = 1:8:length(q_id)
+for k = 1:5:length(q_id)/3
     cla(a1)
     
     yline(a1, 0, 'k-', 'LineWidth', 1.5)
@@ -165,3 +178,60 @@ for k = 2:length(frames)
    writeVideo(writerObj, frame);
 end
 close(writerObj);
+
+%%
+%% Animation
+% disp("Animating...")
+% 
+% h = figure('Position', [0 0 1920 1080]);
+% 
+% t = tiledlayout(5,1, 'TileSpacing', 'tight', 'Padding', 'tight');
+% 
+% 
+% state_vars = results.Properties.VariableNames(2:end-1);
+% tile_locs = [1,2,3,4];
+% for i = 1:length(state_vars)
+%     var = state_vars{i};
+%     ax(i) = nexttile(tile_locs(i));
+%     ylabel(var);
+%     lx(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'blue', 'LineStyle', ':');
+%     lx_true(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'red');
+% %     ylim([ min(results.(var)) max(results.(var))]);
+%     grid on
+% end
+% 
+%     ax(5) = nexttile(5);
+%     lx(5) = animatedline(ax(5), 'LineWidth', 2, 'Color', 'black', 'LineStyle', '-');
+%     grid on
+% 
+% 
+% k=3000;
+% ylabels = {'$x_1\,[m]$','$x_2\,[rad]$','$x_3\,[m\,s^{-1}]$','$x_4\,[rad\,s^{-1}]$'};
+% 
+% 
+% for i = 1:length(state_vars)
+%     var = state_vars{i};
+%     addpoints(lx(i), x(1:k), results.(var)(1:k));
+%     addpoints(lx_true(i), x(1:k), results_true.(var)(1:k))
+%     
+%     ax(i).YLabel.Interpreter = 'latex';    
+%     ax(i).YLabel.String = ylabels{i};
+%     ax(i).YLabel.FontSize = 13;
+%     legend(ax(i), {'Identified model', 'Real model'}, 'location', 'southwest')
+%     
+% end
+% 
+% ax(5).XLabel.Interpreter = 'latex';
+% ax(5).XLabel.String = '$Time\,t\,[s]$';
+% ax(5).XLabel.FontSize=13;
+% 
+%     addpoints(lx(5), x(1:k), results.(var)(1:k));
+%     
+%     ax(5).YLabel.Interpreter = 'latex';    
+%     ax(5).XLabel.Interpreter = 'latex';
+%     ax(5).YLabel.String = '$u\,[N]$';
+%     ax(5).YLabel.FontSize = 13;
+%     
+%     
+
+
