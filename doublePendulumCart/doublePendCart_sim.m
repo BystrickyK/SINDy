@@ -25,8 +25,8 @@ params = [m_c, m_1, m_2,...             % pendulum weights
 disp("Creating input signal...")
 t_end = 160;     % simulation time
 f_s = 1000;     % sampling
-f_c = 2.5;        % cutoff
-u_a = 4;      % input power
+f_c = 1;        % cutoff
+u_a = 2;      % input power
 n = t_end * f_s;
 
 % Random walk
@@ -37,22 +37,40 @@ n = t_end * f_s;
     u = filter(filt_b, filt_a, u);  % defines the cart position!
     u = u .* squarewave;
     
-    squarewave = ones(size(u));
-    squarewave(1:end/6) = 0.25;
-    u = u .* squarewave;
+    squarewave2 = ones(size(u));
+    squarewave2(1:end/6) = 0.25;
+    u = u .* squarewave2;
 
-    limit = 3000;
+    limit = 0.4;
     u(u>limit) = limit;
     u(u<(-limit)) = -limit;  % ensures that the cart position doesn't go much further than 0.5
-    u = filter(filt_b, 0.125*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
+    u = filter(filt_b, 0.25*filt_a, u);  % smoothens the trajectory (necessary due to the cutoffs
     u = diff(u)/(1/f_s);   % get cart velocity by differentiation
     du = diff(u)/(1/f_s);   % get cart acceleration == input signal
     
     du(end+1: end+2) = du(end); % extend the input signal to fix the signal length
     
+    f = figure();
+    plot(du./9.81);
+    ylabel('Acceleration (G)')
+    xlabel('Sample index')
+    
+    f2 = figure();
+    plot(cumsum(cumsum(du./f_s)./f_s));
+    ylabel('Double integrated acceleration')
+    xlabel('Index')
+    
 %     define the input signal as a time-dependent function
     u_f = @(t) interp1(u_t, du, t);
 %     u_f = @(t) interp1(u_t, u, t);
+    inputdata = array2table([u_t', du]);
+    
+    savepath = 'input_signals/input_acc_mid';
+    writetable(inputdata, strcat(savepath, '.csv'));
+    saveas(f, savepath, 'fig')
+    saveas(f, savepath, 'png')
+    saveas(f2, strcat(savepath, '_dInt'), 'png')
+
 %% Solve
 disp("Solving...")
 % Define the system of ODEs

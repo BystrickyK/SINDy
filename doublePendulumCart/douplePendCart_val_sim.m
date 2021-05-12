@@ -21,10 +21,10 @@ params = [m_c, m_1, m_2,...             % pendulum weights
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 10;     % simulation time
+t_end = 150;     % simulation time
 f_s = 1000;     % sampling
-f_c = 3;        % cutoff
-u_a = 3;      % input power
+f_c = 1;        % cutoff
+u_a = 1;      % input power
 
 
 % Random walk

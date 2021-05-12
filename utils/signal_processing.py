@@ -195,7 +195,7 @@ class SpectralFilter:
         self.X_filtered = create_df(ifft(x_hat_f), var_label=var_label)
         return self.X_filtered
 
-    def decrease_modulus(self, x=None, dt=None, var_label='x'):
+    def subtract_meanpower_from_modulus(self, x=None, dt=None, var_label='x'):
         if x is None:
             x = self.X.values
             dt = self.dt
@@ -208,17 +208,11 @@ class SpectralFilter:
 
         N = x.shape[1] # Number of signals
         for col in range(N):
-            # Find frequency index of the respective cutoff frequency
-            # idx_r = np.argmin(np.abs(omega - self.cutoffs[col]))
-            # idx_l = len(omega) - idx_r
-
-            # x_hat_f[idx_l:idx_r, col] = x_hat[idx_l:idx_r, col]
-            x_hat_polar = [cm.polar(x_h) for x_h in x_hat[:, col]]
-            mean_rad = np.exp(self.meanlogpower)
-            # x_hat_f_polar = np.array([(rad-mean_rad, phs) for rad,phs in x_hat_polar])
+            x_hat_polar = np.array([cm.polar(x_h) for x_h in x_hat[:, col]])
+            mean_rad = np.exp(self.meanlogpower)  # Mean radius
+            x_hat_polar[:, 0] = x_hat_polar[:, 0] - mean_rad
             x_hat_f_polar = np.empty_like(x_hat_polar)
             for xh in x_hat_polar:
-
                 x_hat_f[:, col] = [cm.rect(rad, phs) for rad,phs in x_hat_f_polar]
 
         self.X_filtered = create_df(ifft(x_hat_f), var_label=var_label)
