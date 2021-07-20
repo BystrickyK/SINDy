@@ -8,13 +8,11 @@ from src.utils.fft.ifft import ifft
 
 class SpectralFilter:
     def __init__(self, x, dt, plot=False):
-        #
 
         self.x = x  # data array
         self.dt = dt  # sampling period
 
         shape = x.shape
-
         if len(shape) == 1:
             self.cols = 1
         elif len(shape) == 2:
@@ -26,7 +24,6 @@ class SpectralFilter:
 
         self.cutoff_frequency = []
         self.cutoff_frequency_idx = []
-        self.noise_amplitude = []
 
     def find_cutoff_frequencies(self):
 
@@ -40,7 +37,7 @@ class SpectralFilter:
             sig = self.x.iloc[:, i]
 
             # Calculate the periodogram (PSD) using Welch's method
-            f, Pxx = welch(sig, fs=1. / self.dt, nperseg=1024)
+            f, Pxx = welch(sig, fs=1. / self.dt, nperseg=256)
             f = f * 2 * np.pi  # Convert frequency from Hz to rad/s
 
             dPxx_df = np.diff(Pxx, append=0)
@@ -64,7 +61,7 @@ class SpectralFilter:
                 else:
                     title = '$ \hat{}_{} $'.format('x', str(i + 1))
                 axs.set_title(rf'{title}')
-                axs.semilogy(f, Pxx, linewidth=3, alpha=0.9, marker='o')
+                axs.semilogy(f, Pxx, linestyle='none', alpha=0.8, marker='o', markersize=10)
                 axs.vlines([f_cutoff],
                               ymin=Pxx.min(), ymax=Pxx.max(),
                               linestyle=':', color='black', alpha=0.9)
@@ -75,21 +72,8 @@ class SpectralFilter:
         if self.plot:
             plt.show()
 
-    def find_noise_amplitude(self):
 
-        for i, colname in enumerate(self.x.columns):
-            sig = self.x.iloc[:, i]
-
-            # Calculate the FFT and find mean noise amplitude
-            sig_hat = fft(sig, self.dt)
-            noise = sig_hat[self.cutoff_frequency_idx[i]:]
-            noise_amplitude = np.mean(np.abs(noise))
-            self.noise_amplitude.append(noise_amplitude)
-
-
-
-
-    def filter(self, var_label='x'):
+    def filter(self):
 
         x = self.x.values
         dt = self.dt
@@ -100,19 +84,11 @@ class SpectralFilter:
         # Initialize array for filtered data in Fourier domain
         x_hat_f = np.zeros_like(x, dtype='complex')
 
-        shape = x.shape
-        print(shape)
-        print(len(shape))
-        if len(shape) == 1:
-            N = 1
-        elif len(shape) == 2:
-            N = shape[1]
-        else:
-            raise ValueError
-        if self.plot:
-            fig, axs = plt.subplots(nrows=N, tight_layout=True, sharex=True)
 
-        for col in range(N):
+        if self.plot:
+            fig, axs = plt.subplots(nrows=self.cols, tight_layout=True, sharex=True)
+
+        for col in range(self.cols):
             # Find frequency index of the respective cutoff frequency
             idx_r = np.argmin(np.abs(omega - self.cutoff_frequency[col]))
             idx_l = len(omega) - idx_r
@@ -136,29 +112,5 @@ class SpectralFilter:
 
                 plt.show()
 
-        self.X_filtered = ifft(x_hat_f)
-        return self.X_filtered
-
-    def subtract_noise_amplitude(self, x=None, dt=None, var_label='x'):
-        if x is None:
-            x = self.X.values
-            dt = self.dt
-
-        # Calculate frequencies and Fourier coeffs
-        omega, x_hat = fft(x, dt)
-
-        # Initialize array for filtered data in Fourier domain
-        x_hat_f = np.zeros_like(x, dtype='complex')
-
-        N = x.shape[1] # Number of signals
-        for col in range(N):
-            x_hat_polar = np.array([cm.polar(x_h) for x_h in x_hat[:, col]])
-            mean_rad = np.exp(self.meanlogpower)  # Mean radius
-            x_hat_polar[:, 0] = x_hat_polar[:, 0] - mean_rad
-            x_hat_f_polar = np.empty_like(x_hat_polar)
-            for xh in x_hat_polar:
-                x_hat_f[:, col] = [cm.rect(rad, phs) for rad,phs in x_hat_f_polar]
-
-        self.X_filtered = ifft(x_hat_f)
-        return self.X_filtered
-
+        X_filtered = ifft(x_hat_f)
+        return X_filtered

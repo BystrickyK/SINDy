@@ -54,15 +54,19 @@ def plot_psd(xn_hat, x_hat, n_hat):
     lower_bound = (np.abs(x_hat) - np.abs(noise_mean_amp)) ** 2
     upper_bound = (np.abs(x_hat) + np.abs(noise_mean_amp)) ** 2
 
-    fig, axs = plt.subplots(nrows=1, ncols=1, tight_layout=True)
-    axs.plot(omega, lower_bound, '-.', color='tab:red', label='signal+noise, fully destructive')
-    axs.plot(omega, upper_bound, '--', color='tab:red', label='signal+noise, fully constructive')
-    axs.plot(omega, psd_summed, color='tab:red', alpha=0.5, linewidth=1.5, label='signal+noise')
-    axs.plot(omega, psd_sig, color='tab:blue', label='signal')
-    axs.plot(omega, psd_noise, color='tab:green', label='noise')
-    axs.legend()
-    axs.set_xlabel("Frequency $\omega$")
-    axs.set_ylabel("Power $p_x$")
+    snr = np.array(psd_sig) / np.array(psd_noise)
+
+    fig, axs = plt.subplots(nrows=2, ncols=1, tight_layout=True)
+    axs[0].plot(omega, lower_bound, '-.', color='tab:red', label='signal+noise, fully destructive')
+    axs[0].plot(omega, upper_bound, '--', color='tab:red', label='signal+noise, fully constructive')
+    axs[0].plot(omega, psd_summed, color='tab:red', alpha=0.5, linewidth=1.5, label='signal+noise')
+    axs[0].plot(omega, psd_sig, color='tab:blue', label='signal')
+    axs[0].plot(omega, psd_noise, color='tab:green', label='noise')
+    axs[0].legend()
+    axs[0].set_xlabel("Frequency $\omega$")
+    axs[0].set_ylabel("Power $p_x$")
+    axs[1].plot(omega, snr, linewidth=3, color='black', label='SNR')
+    axs[1].legend()
     plt.show()
 
 def plot_time_signal(x, n, t=None):
@@ -87,17 +91,20 @@ def plot_periodogram(x_hat, xn_hat, xf_hat, omega, dt=None):
     xf_psd = np.abs(xf_hat)**2
 
     fig, axs = plt.subplots(nrows=1, ncols=1, tight_layout=True)
-    axs.plot(omega, x_psd, label='signal')
-    axs.plot(omega, xn_psd, label='signal+noise')
-    axs.plot(omega, xf_psd, label='signal+noise after filtering')
+    axs.scatter(omega, x_psd, label='signal', marker='o')
+    axs.scatter(omega, xn_psd, label='signal+noise', marker='o')
+    axs.scatter(omega, xf_psd, label='signal+noise after filtering',
+                linestyle=':', marker='X')
     axs.legend()
     axs.set_xlabel("Frequency $\omega$")
     axs.set_ylabel("Power $p_x$")
+    axs.set_title("Periodogram")
     plt.show()
 
+#%%
 # Create signal with limited bandwidth
-omega_max = 1500
-x_hat, omega = create_fourier_signal(50, 100, omega_max)
+omega_max = 1024
+x_hat, omega = create_fourier_signal(64, 90, omega_max)
 
 # Add white noise
 n_amp = 0.1  # noise amplitude
@@ -109,11 +116,16 @@ xn_hat = x_hat + n_hat
 plot_psd(xn_hat, x_hat, n_hat)
 
 xn = ifft(xn_hat)
+_, xn_hat2 = fft(xn, 0.001)
 x = ifft(x_hat)
+_, x_hat2 = fft(x, 0.1)
+print(np.sum(np.abs(x_hat)**2))
+print(2*np.sum(np.abs(x_hat2)**2))
 n = ifft(n_hat)
 
 plot_time_signal(x, n)
 
+#%%
 xn_df = pd.DataFrame(xn)
 filter = SpectralFilter(xn_df, 0.001, plot=True)
 filter.find_cutoff_frequencies()
@@ -131,20 +143,22 @@ axs[1].set_xlim([0, 200])
 # plt.plot(np.abs(xn_hat))
 # plt.plot(np.abs(xn_hat_2))
 
+#%%
 xn_ = ifft(xn_hat)
 xn2_ = ifft(xn_hat_2)
 plt.figure()
 plt.plot(xn_, color='tab:blue', alpha=0.6)
 plt.plot(xn2_, '--', color='tab:red', alpha=0.6)
 
+#%%
+plot_periodogram(x_hat, xn_hat, xf_hat, omega)
 
-plot_periodogram(x_hat, xn_hat, xf_hat, w)
-
+#%%
 fig, axs = plt.subplots(tight_layout=True)
 t = np.arange(0, len(x), 1) * 0.001
 axs.plot(t, x, label='signal')
 axs.plot(t, xn, label='signal+noise')
-axs.plot(t, xf, label='signal denoised')
+axs.plot(t, xf, '--', label='signal denoised')
 axs.legend()
 axs.set_xlabel("Time $t$")
 axs.set_ylabel("Value")
