@@ -8,48 +8,62 @@ from copy import copy
 
 warnings.filterwarnings("ignore")
 
-def sequentially_thresholded_least_squares(A, b, weights=None, threshold=0.5, n=10, verbose=False):
-    # Pick candidate functions using ridge regression & threshold
-    ridge_model = Ridge(alpha=0.01)
-    ridge_model.fit(A.values, b.values)
-    x = ridge_model.coef_
+def sequentially_thresholded_least_squares(A, b, target_str=None,
+                                                  lambda_=0.05, n=10, verbose=False):
 
-    if isinstance(weights, (list, np.ndarray)):
-        if len(weights) != len(b):
-            raise ValueError("The length of the weight vector isn't equal to the length of the target vector")
+    # Instead of thresholding out candidate functions based on their coefficient value,
+    # threshold based on their *energy* => if a function has low energy, set coefficient to 0
+
+    # Pick candidate functions using sequentially energy-thresholded least squares
+    # model = Ridge(alpha=0.01)
+    # model.fit(A, b)
+    # x = model.coef_
+    x, residuals, rank, singvals = np.linalg.lstsq(A, b, rcond=None)
+
+    target = np.array([col==target_str for col in A.columns])
 
     valid = True
-    # ndims = b.shape[1]
+
     for ii in range(0, n):
         tic = time.time()
-        idx_small = np.abs(x) < threshold  # find small coefficients
-        x[idx_small] = 0  # and set them to 0
 
-        # for dim in range(0, ndims):
+        idx_small = (x < lambda_)  # find low coefficient terms
+        if target is not None:
+            idx_small = np.logical_and(idx_small, ~target)
+        x[idx_small] = 0  # and set their contributions to 0
+
         idx_big = ~idx_small
         if sum(idx_big) == 0:
             valid = False
-            # print("All candidate functions in dimension {} got thresholded.\nConsider decreasing the "
-            #                  "thresholding value.")
+            break
 
-        model = Ridge(alpha=0.01)
-        try:
-            # x[idx_big], residuals, rank, singvals = np.linalg.lstsq(Aw, bw, rcond=None)
-            model.fit(A, b, sample_weight=weights)
-            x[idx_big] = model.coef_
-            residuals = residuals[0]
-        except:
-            valid = False
+        Aw = A.iloc[:, idx_big]
+
+        # fig, axs = plt.subplots(nrows=1, ncols=1, tight_layout=True)
+        # axs.bar(range(len(x[idx_big])), x[idx_big], tick_label=A.columns)
+        # axs.set_title("Current Parameters")
+        # plt.show()
+
+        # model = Ridge(alpha=0.01, fit_intercept=False, tol=1e-4)
+        # try:
+        x[idx_big], residuals, rank, singvals = np.linalg.lstsq(Aw, b, rcond=None)
+            # print(f'{np.max(weights)}, {np.min(weights)}')
+        # model.fit(Aw, b, sample_weight=weights)
+        # x[idx_big] = model.coef_
+        # except LinAlgWarning:
+        #     print("Poorly conditioned")
+        # except:
+        #     valid = False
 
         if verbose:
             toc = time.time()
+            print(A.columns[target])
             print('Iteration {} finished\t#\tIteration runtime: {:0.2f}ms\t#'.format(ii, (toc - tic) * 10 ** 3))
             active_terms = np.sum(~idx_small)
             print("Number of active terms: {}/{}".format(active_terms, np.product(idx_small.shape)))
 
-
     x = np.array(x)
-    return x, valid, residuals
+    return x, residuals, valid, np.linalg.cond(Aw)
 
 def sequentially_energy_thresholded_least_squares(A, b, weights=None, target_str=None,
                                                   lambda_=0.05, n=10, verbose=False):

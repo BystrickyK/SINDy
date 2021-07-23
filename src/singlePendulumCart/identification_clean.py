@@ -1,10 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils.function_libraries import *
-from utils.signal_processing import *
-from utils.identification import PI_Identifier
-from utils.solution_processing import *
-from utils.model_selection import *
+from function_libraries import *
+from identification import PI_Identifier
+from solution_processing import *
+from model_selection import *
 import matplotlib as mpl
 import os
 import pickle
@@ -13,18 +12,21 @@ import sympy as sp
 from sympy.utilities.codegen import codegen
 from decimal import Decimal
 
-# fft in moving window & averaging
-
 mpl.use('Qt5Agg')
 
-dirname = '.' + os.sep + 'singlePendulumCart' + os.sep + 'results' + os.sep
-filename = dirname + 'singlePend.csv'
-filename_val = dirname + 'singlePend.csv'
+# fft in moving window & averaging
+style_path = os.path.join(ROOT_DIR, 'src', 'utils', 'visualization', 'BystrickyK.mplstyle')
+print(style_path)
+plt.style.use({'seaborn', style_path})
+
+
+datafile = 'singlePend.csv'
+data_path = os.path.join(ROOT_DIR,'data','singlePend','simulated',datafile)
+
 
 # Get training dataset
-sim_data = pd.read_csv(filename)
-sim_data, dt = remove_time(sim_data)
-# Append the mirrored version of the signal to deal with FFT Gibbs phenomena
+sim_data = pd.read_csv(data_path)
+# Append the mirrored version of the signal to deal with Gibbs phenomena
 sim_data = pd.concat([sim_data, sim_data[::-1]]).reset_index(drop=True)
 sim_data = sim_data
 

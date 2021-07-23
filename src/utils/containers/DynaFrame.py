@@ -39,21 +39,48 @@ class DynaFrame(pd.DataFrame):
                 raise IndexError("The specified column name is not present in the DynaFrame")
 
         self.set_index(index_col_name, inplace=True)
+        self.index.name = 't'
+        self.reinit()
         return True
 
-    def type_return(self, type):
-        idx = np.array([True if (type in vartype) else False
-                                   for vartype in self.var_types])
+    def get_dt(self):
+
+        if self.index.name is not 't':
+            self.set_index_from_t()
+
+        tdata = self.index.values
+
+        # check that index function is strictly increasing
+        if np.all(np.diff(tdata) > 0):
+            pass
+        else:
+            raise IndexError("Time index values must be strictly increasing")
+
+        mean_dt = np.mean(np.diff(tdata))
+        mean_dt = mean_dt.round(10)
+        if np.all(np.isclose(np.diff(tdata), mean_dt)): # if dt is constant
+            dt = mean_dt
+            self.dt = dt
+        else:
+            # TODO: resample
+            dt = None
+            pass
+
+        return dt
+
+    def type_return_(self, type):
+        idx = [True if (type in vartype) else False
+                                   for vartype in self.var_types]
         return self.iloc[:, idx]
 
     def get_state_vars(self):
-        return self.type_return('x')
+        return self.type_return_('x')
 
     def get_state_derivative_vars(self):
-        return self.type_return('d')
+        return self.type_return_('d')
 
     def get_input_vars(self):
-        return self.type_return('u')
+        return self.type_return_('u')
 
 def create_df(data, var_label='c'):
     if len(data.shape) == 1:

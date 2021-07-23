@@ -9,6 +9,7 @@ import copy
 import os
 
 plt.style.use({'seaborn', '../../../src/utils/visualization/BystrickyK.mplstyle'})
+np.random.seed(0)
 
 def random_complex(size):
     x_hat_complex = np.random.rand(size, 2).astype('complex64') - 0.5
@@ -23,7 +24,7 @@ def create_fourier_signal(e1=10, e2=60, max_omega=151):
     np.random.seed(0)
     # the shape of the fourier image signal
     tmp = np.arange(-e2, e2, 1)
-    signal = np.zeros_like(tmp)
+    signal = np.zeros_like(tmp) + 1e-9
     mid = int(len(tmp)/2)
     signal[mid: mid+e1] = mid
     signal[mid+e1:mid+e2] = mid - tmp[mid+e1:mid+e2] + tmp[mid+e1]
@@ -91,10 +92,9 @@ def plot_periodogram(x_hat, xn_hat, xf_hat, omega, dt=None):
     xf_psd = np.abs(xf_hat)**2
 
     fig, axs = plt.subplots(nrows=1, ncols=1, tight_layout=True)
-    axs.scatter(omega, x_psd, label='signal', marker='o')
-    axs.scatter(omega, xn_psd, label='signal+noise', marker='o')
-    axs.scatter(omega, xf_psd, label='signal+noise after filtering',
-                linestyle=':', marker='X')
+    axs.plot(omega, x_psd, label='signal')
+    axs.plot(omega, xn_psd, label='signal+noise')
+    axs.plot(omega, xf_psd, label='signal+noise after filtering', linestyle=':')
     axs.legend()
     axs.set_xlabel("Frequency $\omega$")
     axs.set_ylabel("Power $p_x$")
@@ -104,61 +104,41 @@ def plot_periodogram(x_hat, xn_hat, xf_hat, omega, dt=None):
 #%%
 # Create signal with limited bandwidth
 omega_max = 1024
-x_hat, omega = create_fourier_signal(64, 90, omega_max)
+x_hat_clean, omega = create_fourier_signal(64, 90, omega_max)
+
+dt = 0.001
 
 # Add white noise
-n_amp = 0.1  # noise amplitude
+n_amp = 0.05  # noise amplitude
 n_hat = random_complex(len(omega)) * n_amp  # white noise in fourier domain
 
 # combined signal
-xn_hat = x_hat + n_hat
+x_hat_noisy = x_hat_clean + n_hat
 
-plot_psd(xn_hat, x_hat, n_hat)
+plot_psd(x_hat_noisy, x_hat_clean, n_hat)
 
-xn = ifft(xn_hat)
-_, xn_hat2 = fft(xn, 0.001)
-x = ifft(x_hat)
-_, x_hat2 = fft(x, 0.1)
-print(np.sum(np.abs(x_hat)**2))
-print(2*np.sum(np.abs(x_hat2)**2))
+x_clean = ifft(x_hat_clean)
+x_noisy = ifft(x_hat_noisy)
 n = ifft(n_hat)
 
-plot_time_signal(x, n)
+plot_time_signal(x_clean, n)
 
 #%%
-xn_df = pd.DataFrame(xn)
-filter = SpectralFilter(xn_df, 0.001, plot=True)
+x_noisy_df = pd.DataFrame(x_noisy)
+filter = SpectralFilter(x_noisy_df, dt, plot=True)
 filter.find_cutoff_frequencies()
-xf = filter.filter()
-w, xf_hat = fft(xf, 1)
-_, xn_hat_2 = fft(xn, 1)
-
-fig, axs = plt.subplots(nrows=2, ncols=1, tight_layout=True)
-axs[0].plot(omega, np.real(xn_hat), color='tab:blue', alpha=0.6)
-axs[0].plot(omega, np.real(xn_hat_2), '--', color='tab:red', alpha=0.6)
-axs[0].set_xlim([0, 200])
-axs[1].plot(omega, np.imag(xn_hat), color='tab:blue', alpha=0.6)
-axs[1].plot(omega, np.imag(xn_hat_2), '--', color='tab:red', alpha=0.6)
-axs[1].set_xlim([0, 200])
-# plt.plot(np.abs(xn_hat))
-# plt.plot(np.abs(xn_hat_2))
+x_filtered = filter.filter()
+w, x_hat_filtered = fft(x_filtered, 1)
 
 #%%
-xn_ = ifft(xn_hat)
-xn2_ = ifft(xn_hat_2)
-plt.figure()
-plt.plot(xn_, color='tab:blue', alpha=0.6)
-plt.plot(xn2_, '--', color='tab:red', alpha=0.6)
-
-#%%
-plot_periodogram(x_hat, xn_hat, xf_hat, omega)
+plot_periodogram(x_hat_clean, x_hat_noisy, x_hat_filtered, omega)
 
 #%%
 fig, axs = plt.subplots(tight_layout=True)
-t = np.arange(0, len(x), 1) * 0.001
-axs.plot(t, x, label='signal')
-axs.plot(t, xn, label='signal+noise')
-axs.plot(t, xf, '--', label='signal denoised')
+t = np.arange(0, len(x_clean), 1) * dt
+axs.plot(t, x_clean, label='signal')
+axs.plot(t, x_noisy, label='signal+noise')
+axs.plot(t, x_filtered, '--', label='signal denoised')
 axs.legend()
 axs.set_xlabel("Time $t$")
 axs.set_ylabel("Value")
@@ -166,9 +146,22 @@ plt.show()
 print('end')
 
 def test_signal_filtering():
-    filter = SpectralFilter(data, dt, plot=False)
-    filter.find_cutoff_frequencies_by_differentiation()
-    # plt.show()
+    filter = SpectralFilter(x_noisy_df, dt, plot=False)
+    filter.find_cutoff_frequencies()
+    x_filtered = filter.filter()
+    x_expected = x_filtered.reshape((-1,))
+    x_real = x_clean
+    tolerance = np.abs(np.max(x_real)) * 0.025
+    isclose = np.isclose(x_real, x_expected, atol=tolerance, rtol=0)
+
+    fig, ax = plt.subplots(nrows=2, tight_layout=True, sharex=True)
+    ax[0].plot(x_expected, 'g')
+    ax[0].plot(x_real, 'b')
+    ax[0].plot(x_real+tolerance, 'r--')
+    ax[0].plot(x_real-tolerance, 'r--')
+    ax[1].plot(isclose)
+
+    assert np.all(isclose)
 
 
 

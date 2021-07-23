@@ -2,117 +2,115 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from src.utils.function_libraries import *
 from src.utils.data_utils import *
-from src.utils.identification import PI_Identifier
+from src.utils.identification.PI_Identifier import PI_Identifier
 from src.utils.solution_processing import *
-from src.utils.model_selection import *
+from differentiation.spectral_derivative import compute_spectral_derivative
+from differentiation.finite_diff import compute_finite_diff
+from filtering.SpectralFilter import SpectralFilter
+from filtering.KernelFilter import KernelFilter
+from tools import halve, mirror, add_noise, downsample
 from src.utils.theta_processing.single_pend import *
+from sklearn.model_selection import TimeSeriesSplit
 import matplotlib as mpl
 import os
 import pickle
-
+from containers.DynaFrame import DynaFrame, create_df
+from definitions import ROOT_DIR
 import sympy as sp
 from sympy.utilities.codegen import codegen
 
+style_path = os.path.join(ROOT_DIR, 'src', 'utils', 'visualization', 'BystrickyK.mplstyle')
+print(style_path)
+plt.style.use({'seaborn', style_path})
 
 mpl.use('Qt5Agg')
 
-dirname = '.' + os.sep + 'singlePendulumCart' + os.sep + 'results' + os.sep
-filename = dirname + 'singlePend.csv'
-filename_val = dirname + 'singlePend.csv'
-
+datafile = 'singlePend.csv'
+data_path = os.path.join(ROOT_DIR,'data','singlePend','simulated',datafile)
+cache_path = os.path.join(ROOT_DIR,'src', 'singlePendulumCart', 'cache')
 
 # Get training dataset
-sim_data = pd.read_csv(filename)
-sim_data, dt = remove_time(sim_data)
-# Append the mirrored version of the signal to deal with FFT Gibbs phenomena
-sim_data = pd.concat([sim_data, sim_data[::-1]]).reset_index(drop=True)
+sim_data = pd.read_csv(data_path)
+sim_data_x = sim_data.loc[:, ['x'+str(i) for i in (1,2)]]
+sim_data_dx = sim_data.loc[:, ['dx'+str(i) for i in (1,2,3,4)]]
+sim_data_u = sim_data.loc[:, 'u']
+sim_data = pd.concat([sim_data_x, sim_data_dx, sim_data_u], axis=1)
+
+sim_data = DynaFrame(sim_data)
+dt = 0.001
 
 # Get validation dataset
-sim_data_val = pd.read_csv(filename_val)
-sim_data_val, dt = remove_time(sim_data_val)
-# Append the mirrored version of the signal to deal with FFT Gibbs phenomena
-sim_data_val = pd.concat([sim_data_val, sim_data_val[::-1]]).reset_index(drop=True)
+split_idx = int(len(sim_data)*0.8)
+sim_data_val = DynaFrame(sim_data.iloc[split_idx:, :])
+sim_data = DynaFrame(sim_data.iloc[:split_idx, :])
 
 N = sim_data.shape[0]
 step = 5
 
 # Real signals
-Xt = sim_data.iloc[:, :-1]
-Xt = create_df(Xt, 'x')
+Xt = sim_data.get_state_vars()
 
-DXt = compute_spectral_derivative(Xt, dt)
-DXt = create_df(DXt, 'dx')
-
-DXt2 = compute_finite_differences(Xt, dt)
-DXt2 = create_df(DXt2, 'dx')
+DXt = sim_data.get_state_derivative_vars().iloc[:,[0,1]]
+DDXt = sim_data.get_state_derivative_vars().iloc[:,[2,3]]
 
 # Validation data
-Xval = sim_data_val.iloc[:, :-1]
-Xval = create_df(Xval, 'x')
-DXval = compute_spectral_derivative(Xval, dt)
-DXval = create_df(DXval, 'dx')
-uval = sim_data_val.iloc[:, -1]
-uval = pd.DataFrame(uval)
-uval.columns = ['u']
+DXval = sim_data_val.get_state_derivative_vars()
+Xval = sim_data_val.get_state_vars()
+Xval = pd.concat([Xval, DXval.loc[:,['dx1', 'dx2']]], axis=1)
+Xval.columns = ['x'+str(i) for i in (1,2,3,4)]
+uval = sim_data_val.get_input_vars()
 
 # xn = add_noise(sim_data.iloc[:, [0, 1]], [0.0025, 0.005])
-xn = add_noise(sim_data.iloc[:, [0, 1]], [0.0025, 0.005])
+xn = add_noise(sim_data.get_state_vars(), pwr=[0.0005, np.pi/180])
+sim_data = DynaFrame(sim_data)
 filter = SpectralFilter(xn, dt, plot=False)
-filter.find_cutoffs_and_meanlogpower(k=0.98, freq_multiplier=1)
-# x2 = filter.decrease_modulus()
-x = filter.filter(var_label='x')
+filter.find_cutoff_frequencies(offset=0)
+x = filter.filter()
 
-with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
-    fig, axs = plt.subplots(nrows=2, tight_layout=True, sharex=True)
-    axs[0].plot(xn.iloc[:, 0], alpha=0.7, linewidth=2, color='tab:red')
-    axs[0].plot(x.iloc[:, 0], alpha=1, linewidth=2, color='tab:blue')
-    axs[0].plot(Xt.iloc[:, 0], alpha=0.8, linewidth=2, color='tab:green')
-    axs[0].set_ylabel('$x_1\; [m]$')
-    axs[0].legend(['Noisy', 'Clean', 'Filtered'])
-
-    axs[1].plot(xn.iloc[:, 1], alpha=0.7, linewidth=2, color='tab:red')
-    axs[1].plot(x.iloc[:, 1], alpha=1, linewidth=2, color='tab:blue')
-    axs[1].plot(Xt.iloc[:, 1], alpha=0.8, linewidth=2, color='tab:green')
-    axs[1].set_ylabel('$x_2 \; [rad]$')
-    axs[1].legend(['Noisy', 'Clean', 'Filtered'])
-    axs[1].set_xlabel('Sample index $k$')
-
-dx = compute_spectral_derivative(x, dt)
-# dx = compute_finite_differences(x, dt)
-# filter = KernelFilter(kernel_size=50)
-# dx = filter.filter(dx)
+fig, axs = plt.subplots(nrows=2, tight_layout=True, sharex=True)
+for i, ax in enumerate(axs):
+    ax.plot(xn.iloc[:, i], alpha=0.7, linewidth=2, color='tab:red')
+    ax.plot(Xt.iloc[:, i], alpha=0.8, linewidth=2, color='tab:green')
+    ax.plot(x.iloc[:, i], alpha=1, linewidth=2, color='tab:blue')
+    ax.legend(['Noisy', 'Clean', 'Filtered'])
+axs[0].set_ylabel('$x_1\; [m]$')
+axs[1].set_ylabel('$x_2 \; [rad]$')
+axs[1].set_xlabel('Sample index $k$')
+#%%
+dx = compute_spectral_derivative(x, dt, mirroring=True)
 dx = create_df(dx, 'dx')
-
-# compare_signals(DXt.iloc[:, [0,1]], dx, ['Clean', 'Filtered'], varlabel='\dot{x}')
+filter = KernelFilter(kernel_size=51)
+dx = filter.filter(dx)
+compare_signals(DXt, dx, ['Clean', 'Filtered'], ylabels=['$\dot{x}_1 \; [m\; s^{-2}]$',
+                                                          '$\dot{x}_2 \; [rad\; s^{-2}]$'])
 
 ddx = compute_spectral_derivative(dx, dt)
 ddx = create_df(ddx, 'ddx')
-compare_signals(DXt.iloc[:, [2,3]], ddx, ['Clean', 'Filtered'], ylabels=['$\ddot{x}_1 \; [m\; s^{-2}]$',
+compare_signals(DDXt, ddx, ['Clean', 'Filtered'], ylabels=['$\ddot{x}_1 \; [m\; s^{-2}]$',
                                                                          '$\ddot{x}_2 \; [rad\; s^{-2}]$'])
+#%%
+u = sim_data.get_input_vars()
+u = downsample(u, step)
 
-u = sim_data.iloc[:, -1]
-u = pd.DataFrame(u)
-u.columns = ['u']
-u = u.iloc[:N//2-20:step, :].reset_index(drop=True)
+sim_data = DynaFrame(downsample(sim_data, step))
 
-sim_data = sim_data.iloc[:N//2:step, :].values
-
-X = np.array(pd.concat([x, dx], axis=1))
+X = pd.concat([x, dx], axis=1)
 X = create_df(X, 'x')
 
-DX = np.array(pd.concat([dx, ddx], axis=1))
+DX = pd.concat([dx, ddx], axis=1)
 DX = create_df(DX, 'dx')
 
-X = X.iloc[:N//2-20:step, :].reset_index(drop=True)
-DX = DX.iloc[:N//2-20:step, :].reset_index(drop=True)
+X = downsample(X, step)
+DX = downsample(DX, step)
 
-Xt = Xt.iloc[:N//2:step, :].reset_index(drop=True)
-DXt = DXt.iloc[:N//2:step, :].reset_index(drop=True)
+Xt = downsample(Xt, step)
+DXt = downsample(DXt, step)
 
-Xval = Xval.iloc[:N//2:step, :].reset_index(drop=True)
-DXval = DXval.iloc[:N//2:step, :].reset_index(drop=True)
-uval = uval.iloc[:N//2:step, :].reset_index(drop=True)
-# compare_signals(DX.iloc[:,[2,3]], DXt.iloc[:,[2,3]], legend_str=['Filt','Clean'])
+Xval = downsample(Xval, step)
+DXval = downsample(DXval, step)
+uval = downsample(uval, step)
+# compare_signals(DX.iloc[:,[2,3]], downsample(DDXt.iloc[:,[0,1]], step),
+#                 legend_str=['Filt','Clean'], ylabels=['a', 'b'])
 #%%
 data = {'X': X, 'DX': DX, 'u': u}
 dataval = {'X': Xval, 'DX': DXval, 'u': uval}
@@ -134,7 +132,7 @@ theta_val.iloc[:,0] = 1
 theta_val.iloc[0,0] = 1.00001
 # %% Compute the solution or retrieve it from cache
 
-rewrite = False # Should the cache be rewritten
+rewrite = True # Should the cache be rewritten
 eqns_to_identify = ['dx_3', 'dx_4']  # State derivatives whose equation we want to identify
 cache_str = 'STC2'
 eqns_models = {}
@@ -158,7 +156,8 @@ for eqn in eqns_to_identify:
     # svd = {'U':svd[2], 'Sigma':np.diag(svd[1]), 'V':svd[0]}
     # plot_svd(svd)
 
-    cachename = dirname + cache_str + '_' + eqn
+    cachename = cache_str + '_' + eqn
+    cachename = os.path.join(cache_path, cachename)
 
     if os.path.exists(cachename) and not rewrite:
         print("Retrieving solution from cache.")
@@ -168,6 +167,7 @@ for eqn in eqns_to_identify:
         print("No solution in cache, calculating solution from scratch.")
         EqnIdentifier = PI_Identifier(theta_hat_train, theta_hat_validation)
         EqnIdentifier.set_thresh_range(lims=(0.0001, 0.05), n=10)
+        EqnIdentifier.set_target(eqn)
         EqnIdentifier.create_models(n_models=theta_hat_train.shape[1], iters=8, shuffle=False)
         eqns_models[eqn]['models'] = EqnIdentifier.models
         with open(cachename, 'wb') as f:
@@ -185,9 +185,11 @@ for eqn_str, eqn_model in eqns_models.items():
     # %% Remove duplicate models
     models = unique_models(models)
     models = model_activations(models)
+    plot_implicit_sols(models, col_names, show_labels=False, axislabels=False)
     # %% Look for consistent models by finding clusters in the term activation space
     models = consistent_models(models, min_cluster_size=2)
 
+    plot_implicit_sols(models, col_names, show_labels=False, axislabels=True)
     models = model_equation_strings(models, col_names)
     vars = ['x_1', 'x_2', 'x_3', 'x_4', 'u']
     lhsvar = eqn_str

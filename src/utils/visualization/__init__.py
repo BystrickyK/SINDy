@@ -10,21 +10,19 @@ import os
 from scipy.cluster.hierarchy import dendrogram
 from utils.tools import *
 import time
+from definitions import ROOT_DIR
 
-print(os.getcwd())
 
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['mathtext.rm'] = 'cm'
-plt.style.use({'seaborn', './utils/visualization/BystrickyK.mplstyle'})
+style_path = os.path.join(ROOT_DIR, 'src', 'utils', 'visualization', 'BystrickyK.mplstyle')
+print(style_path)
+plt.style.use({'seaborn', style_path})
 
 def set_save_plot_options(save=False,
                           add_stamp=True, plot=True, format='.svg', dpi=300):
 
-    # Move to project root
-    # path = os.path.normpath(os.getcwd() + os.sep + os.pardir)
-    path = os.getcwd()
-    # Move to images
-    path = path + os.sep + 'images'
+    path = os.path.join('.', 'images')
 
     file_path = path + os.sep
     if add_stamp:
@@ -420,14 +418,28 @@ def plot_dendrogram(model, **kwargs):
 
 def compare_signals(data1, data2, legend_str, ylabels):
 
-    # with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
-    fig, axs = plt.subplots(nrows=2, tight_layout=True, sharex=True)
-    axs[0].plot(data1.iloc[:, 0], alpha=0.7, linewidth=2, color='tab:blue')
-    axs[0].plot(data2.iloc[:, 0], alpha=1, linewidth=2, color='tab:green')
-    axs[0].set_ylabel(ylabels[0])
-    axs[0].legend(legend_str)
-    axs[1].plot(data1.iloc[:, 1], alpha=0.7, linewidth=2, color='tab:blue')
-    axs[1].plot(data2.iloc[:, 1], alpha=1, linewidth=2, color='tab:green')
-    axs[1].set_xlabel('Sample index $k$')
-    axs[1].set_ylabel(ylabels[1])
-    axs[1].legend(legend_str)
+    cols = data1.shape[1]
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True)
+    for col in range(cols):
+        axs[col].plot(data1[:, col], alpha=0.75, linewidth=2, color='tab:red')
+        axs[col].plot(data2[:, col], alpha=1, linewidth=2, color='tab:blue')
+        axs[col].set_ylabel(ylabels[col])
+        axs[col].legend(legend_str)
+    axs[cols-1].set_xlabel('Sample index $k$')
+
+@save_and_plot(filename='lorentz3d', plot=True)
+def plot_lorentz3d(state_data, title=None, **kwargs):
+    with plt.style.context({'./images/BystrickyK.mplstyle'}):
+        fig = plt.figure(tight_layout=True, figsize=(9, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title(title)
+        ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
+        ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
+        ax.set_xlabel(r"$x_1$")
+        ax.set_ylabel(r"$x_2$")
+        ax.set_zlabel(r"$x_3$")
+        return ax
