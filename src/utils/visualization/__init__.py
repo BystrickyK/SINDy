@@ -416,17 +416,36 @@ def plot_dendrogram(model, **kwargs):
     # Plot the corresponding dendrogram
     dendrogram(linkage_matrix, **kwargs)
 
-def compare_signals(data1, data2, legend_str, ylabels):
+def compare_signals(data1, data2, legend_str, ylabels, title_str    =None):
 
     cols = data1.shape[1]
 
     data1 = np.array(data1)
     data2 = np.array(data2)
 
-    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True)
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 8))
+    axs[0].set_title(title_str)
     for col in range(cols):
-        axs[col].plot(data1[:, col], alpha=0.75, linewidth=2, color='tab:red')
-        axs[col].plot(data2[:, col], alpha=1, linewidth=2, color='tab:blue')
+        axs[col].plot(data1[:, col], linewidth=3, alpha=0.75, color='tab:blue')
+        axs[col].plot(data2[:, col], linewidth=1.5, alpha=0.75, color='tab:red')
+        axs[col].set_ylabel(ylabels[col])
+        axs[col].legend(legend_str)
+    axs[cols-1].set_xlabel('Sample index $k$')
+
+def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str    =None):
+
+    cols = data1.shape[1]
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+    data3 = np.array(data3)
+
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 8))
+    axs[0].set_title(title_str)
+    for col in range(cols):
+        axs[col].plot(data1[:, col], linewidth=3, alpha=1, color='black')
+        axs[col].plot(data2[:, col], linewidth=1.5, alpha=0.75, color='tab:red')
+        axs[col].plot(data3[:, col], linewidth=1.5, alpha=0.75, color='tab:blue')
         axs[col].set_ylabel(ylabels[col])
         axs[col].legend(legend_str)
     axs[cols-1].set_xlabel('Sample index $k$')

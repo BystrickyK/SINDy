@@ -62,13 +62,14 @@ class PI_Identifier:
         theta_train = self.theta_train.drop(lhs_train.name, axis=1)
 
         # Find sparse solution using STLQ
-        rhs, residuals, valid, cond = sequentially_thresholded_least_squares(A=theta_train, b=lhs_train, n=self.iters, lambda_=hyperparameter)
+        # rhs, residuals, valid, cond = sequentially_thresholded_least_squares(A=theta_train, b=lhs_train,
+        #                                                                      n=self.iters, lambda_=hyperparameter)
         # rhs, valid, residuals = seq_energy_thresh_ls(A_train=theta_train, b_train=lhs_train,
         #                                                  n=iters, lambda_=hyperparameter, verbose=False)
 
-        # rhs, valid, cond = sequentially_energy_thresholded_least_squares(A=theta_train, b=lhs_train,
-        #                                                                  weights=None, target_str=self.target, n=self.iters,
-        #                                                                  lambda_=hyperparameter, verbose=False)
+        rhs, valid, cond = sequentially_energy_thresholded_least_squares(A=theta_train, b=lhs_train,
+                                                                         weights=None, target_str=self.target, n=self.iters,
+                                                                         lambda_=hyperparameter, verbose=False)
 
         # Add the guess term parameter into the solution
         rhs = np.insert(rhs, guess_index, -1)

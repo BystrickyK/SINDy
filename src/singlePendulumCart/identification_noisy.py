@@ -61,7 +61,7 @@ Xval.columns = ['x'+str(i) for i in (1,2,3,4)]
 uval = sim_data_val.get_input_vars()
 
 # xn = add_noise(sim_data.iloc[:, [0, 1]], [0.0025, 0.005])
-xn = add_noise(sim_data.get_state_vars(), pwr=[0.0005, np.pi/180])
+xn = add_noise(sim_data.get_state_vars(), pwr=[0.00005, np.pi/720])
 sim_data = DynaFrame(sim_data)
 filter = SpectralFilter(xn, dt, plot=False)
 filter.find_cutoff_frequencies(offset=0)
