@@ -14,8 +14,6 @@ import sympy as sp
 from sympy.utilities.codegen import codegen
 from decimal import Decimal
 
-# fft in moving window & averaging
-
 mpl.use('Qt5Agg')
 
 dirname = '.' + os.sep + 'singlePendulumCart' + os.sep + 'data' + os.sep
