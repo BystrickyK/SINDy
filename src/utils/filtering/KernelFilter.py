@@ -1,4 +1,5 @@
 import scipy.signal
+from containers.DynaFrame import create_df
 import numpy as np
 
 class KernelFilter:

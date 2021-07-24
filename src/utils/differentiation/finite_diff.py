@@ -1,6 +1,6 @@
 import numpy as np
 
-def finite_diff(x, dt, direction='forward'):
+def compute_finite_diff(x, dt, direction='forward'):
     """
     x (DataFrame): State measurements
     dt (Float): Time step size

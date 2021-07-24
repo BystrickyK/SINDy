@@ -146,7 +146,7 @@ def poly_library(x, poly_orders=(1, 2)):
 def remove_twins(fun_lib):
     corr = fun_lib.corr()
     corr_lower_tri = np.tril(corr, k=-1)
-    lib_identity_idx = np.abs(corr_lower_tri) == 1
+    lib_identity_idx = np.isclose(np.abs(corr_lower_tri), 1)
     lib_identity_idx = np.array(np.nonzero(lib_identity_idx))[1,:]
     lib_identity_labels = fun_lib.columns[lib_identity_idx]
     lib_data_without_identities = fun_lib.drop(lib_identity_labels, axis=1)

@@ -1,9 +1,35 @@
 import re
 
 # cuts off a specified number of rows from both sides of a pandas DataFrame
+import numpy as np
+import pandas as pd
+
+
 def cutoff(x, idx_cutoff):
     x = x.iloc[idx_cutoff:-idx_cutoff]
     return x
+
+def mirror(x):
+    if isinstance(x, np.ndarray):
+        mirror_x = np.concatenate((x, x[::-1]), axis=0)
+    if isinstance(x, pd.DataFrame):
+        mirror_x = pd.concat((x, x[::-1]), axis=0)
+        mirror_x.reset_index(inplace=True, drop=True)
+    return mirror_x
+
+def halve(x):
+    if isinstance(x, np.ndarray):
+        len = x.shape[0]
+        halved_x = x[:int(len/2)]
+    if isinstance(x, pd.DataFrame):
+        len = x.shape[0]
+        halved_x = x.iloc[:int(len/2)]
+    return halved_x
+
+def downsample(x, step):
+    return x.iloc[::step, :].reset_index(drop=True)
+
+
 
 def parse_function_strings(theta_cols):
     fun_strings = []
@@ -50,5 +76,9 @@ def parse_function_str_add_dots(theta_cols):
         var_new = rf'$ {{\}}dot{{ {varname} }}_{idx} $'.replace('{\}', '\\')
         new_vars.append(var_new)
     return new_vars
+
+def add_noise(x, pwr=None):
+    noise = np.random.randn(*x.shape) * pwr
+    return x + noise
 
 

@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import cmath as cm
 from src.utils.fft.fft import fft
 from src.utils.fft.ifft import ifft
+from tools import mirror, halve
+from containers.DynaFrame import DynaFrame
 
 class SpectralFilter:
-    def __init__(self, x, dt, plot=False):
+    def __init__(self, x, dt, plot=False, mirroring=True):
 
         self.x = x  # data array
         self.dt = dt  # sampling period
@@ -21,11 +23,12 @@ class SpectralFilter:
             raise ValueError
 
         self.plot = plot
+        self.mirroring = mirroring
 
         self.cutoff_frequency = []
         self.cutoff_frequency_idx = []
 
-    def find_cutoff_frequencies(self):
+    def find_cutoff_frequencies(self, offset=0):
 
         if self.plot:
             fig, axs = plt.subplots(nrows=self.x.shape[1],
@@ -37,7 +40,7 @@ class SpectralFilter:
             sig = self.x.iloc[:, i]
 
             # Calculate the periodogram (PSD) using Welch's method
-            f, Pxx = welch(sig, fs=1. / self.dt, nperseg=256)
+            f, Pxx = welch(sig, fs=1. / self.dt, nperseg=512)
             f = f * 2 * np.pi  # Convert frequency from Hz to rad/s
 
             dPxx_df = np.diff(Pxx, append=0)
@@ -46,11 +49,11 @@ class SpectralFilter:
             # Set the cutoff frequency as the lowest frequency at which the absolute
             # value of the derivative of PSD is below threshold
             thresh = np.min(dPxx_df_logabs[:-2]) # ignore last element
-            thresh += 6
+            thresh += 8
 
-            f_cutoff_idx = np.where(
+            f_cutoff_idx = int(np.where(
                dPxx_df_logabs < thresh
-            )[0][0]
+            )[0][0] + offset)
             f_cutoff = f[f_cutoff_idx]
             self.cutoff_frequency.append(f_cutoff)
             self.cutoff_frequency_idx.append(f_cutoff_idx)
@@ -60,18 +63,17 @@ class SpectralFilter:
                     title = 'Periodogram from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
                 else:
                     title = '$ \hat{}_{} $'.format('x', str(i + 1))
-                axs.set_title(rf'{title}')
-                axs.semilogy(f, Pxx, linestyle='none', alpha=0.8, marker='o', markersize=10)
-                axs.vlines([f_cutoff],
+                axs[i].set_title(rf'{title}')
+                axs[i].semilogy(f, Pxx, linestyle='none', alpha=0.8, marker='o', markersize=10)
+                axs[i].vlines([f_cutoff],
                               ymin=Pxx.min(), ymax=Pxx.max(),
                               linestyle=':', color='black', alpha=0.9)
-                axs.set_ylabel(r'$Power$')
-                axs.set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-                # axs[self.x.shape[1] - 1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[i].set_ylabel(r'$Power$')
+                # axs[i].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[self.x.shape[1] - 1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
 
         if self.plot:
             plt.show()
-
 
     def filter(self):
 
@@ -79,6 +81,9 @@ class SpectralFilter:
         dt = self.dt
 
         # Calculate frequencies and Fourier coeffs
+        if self.mirroring:
+            x = mirror(x)
+
         omega, x_hat = fft(x, dt)
 
         # Initialize array for filtered data in Fourier domain
@@ -100,17 +105,21 @@ class SpectralFilter:
                 x_hat_f_abs = np.abs(x_hat_f[:, col])
                 title = '$ \hat{}_{} $'.format('x', str(col+1))
                 # axs[col].set_title(rf'{title}')
-                axs.semilogy(omega, x_hat_abs, alpha=1,
+                axs[col].semilogy(omega, x_hat_abs, alpha=1,
                                   marker='.', linestyle='none')
-                axs.semilogy(omega, x_hat_f_abs, alpha=0.7,
+                axs[col].semilogy(omega, x_hat_f_abs, alpha=0.7,
                                   marker='.', linestyle='none')
-                axs.vlines([omega[idx_r], omega[idx_l]], ymin=np.min(x_hat_abs), ymax=np.max(x_hat_abs),
+                axs[col].vlines([omega[idx_r], omega[idx_l]], ymin=np.min(x_hat_abs), ymax=np.max(x_hat_abs),
                                 linestyle=':', color='black')
                 # axs[N-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-                axs.set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-                axs.set_ylabel(r'$Power$')
+                # axs.set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[col].set_ylabel(r'$Power$')
 
-                plt.show()
+        plt.show()
 
-        X_filtered = ifft(x_hat_f)
+        X_filtered = np.real(ifft(x_hat_f))
+        if self.mirroring:
+            X_filtered = halve(X_filtered)
+        X_filtered = DynaFrame(X_filtered)
+        X_filtered.columns = self.x.columns
         return X_filtered
