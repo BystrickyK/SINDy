@@ -9,7 +9,7 @@ def fft(x, dt):
     x_hat = np.fft.fftshift(x_hat, axes=0)
 
     # Fourier frequencies in rad/s
-    omega = (fs*2*np.pi/n) * np.arange(-n / 2, n / 2)
+    omega = (fs*2*np.pi/n) * np.arange(-n/2, n/2)
     omega = omega[:, np.newaxis]
 
     return omega, x_hat

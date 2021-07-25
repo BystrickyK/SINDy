@@ -40,6 +40,5 @@ def test_fft_of_ifft_equality():
     x_hat_expected = np.concatenate([x_hat_expected[::-1], x_hat_expected.conjugate()])
     x = ifft(x_hat_expected)
     omega, x_hat_real = fft(x, 1)
-
     assert np.all(np.isclose(x_hat_real,x_hat_expected))
 

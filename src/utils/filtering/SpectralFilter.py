@@ -8,6 +8,12 @@ from src.utils.fft.ifft import ifft
 from tools import mirror, halve
 from containers.DynaFrame import DynaFrame
 
+def mov_avg(x, size):
+    conv = np.convolve(x, np.ones(size), 'same') / size
+    conv[:size//2] = conv[size//2]
+    conv[-size//2:] = conv[-size//2]
+    return conv
+
 class SpectralFilter:
     def __init__(self, x, dt, plot=False, mirroring=True):
 
@@ -35,6 +41,9 @@ class SpectralFilter:
                                     sharex=True,
                                     tight_layout=True)
 
+        if not hasattr(axs, '__iter__'):
+            axs = [axs]
+
         # for each col in x
         for i, colname in enumerate(self.x.columns):
             sig = self.x.iloc[:, i]
@@ -43,34 +52,39 @@ class SpectralFilter:
             f, Pxx = welch(sig, fs=1. / self.dt, nperseg=512)
             f = f * 2 * np.pi  # Convert frequency from Hz to rad/s
 
-            dPxx_df = np.diff(Pxx, append=0)
-            dPxx_df_logabs = np.log(np.abs(dPxx_df))
+            Pxx_smooth = mov_avg(Pxx, len(Pxx)//32)
+            mean = np.mean(Pxx_smooth[int(len(Pxx)*0.5):])
+            std = np.std(Pxx_smooth[int(len(Pxx)*0.5):])
+            thresh = mean + 2*std
 
             # Set the cutoff frequency as the lowest frequency at which the absolute
             # value of the derivative of PSD is below threshold
-            thresh = np.min(dPxx_df_logabs[:-2]) # ignore last element
-            thresh += 8
-
             f_cutoff_idx = int(np.where(
-               dPxx_df_logabs < thresh
+               Pxx_smooth < thresh
             )[0][0] + offset)
             f_cutoff = f[f_cutoff_idx]
             self.cutoff_frequency.append(f_cutoff)
             self.cutoff_frequency_idx.append(f_cutoff_idx)
 
             if self.plot:
-                if i == 0:
-                    title = 'Periodogram from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
-                else:
-                    title = '$ \hat{}_{} $'.format('x', str(i + 1))
-                axs[i].set_title(rf'{title}')
-                axs[i].semilogy(f, Pxx, linestyle='none', alpha=0.8, marker='o', markersize=10)
+                # if i == 0:
+                #     title = 'Periodogram from Welch\'s method\n$ \hat{}_{} $'.format('x', str(i + 1))
+                # else:
+                #     title = '$ \hat{}_{} $'.format('x', str(i + 1))
+                # axs[i].set_title(rf'{title}')
+                axs[i].semilogy(f, Pxx_smooth, linestyle='none', alpha=0.7, color='tab:blue',
+                                marker='o', markersize=10, label='Smoothed periodogram')
                 axs[i].vlines([f_cutoff],
                               ymin=Pxx.min(), ymax=Pxx.max(),
-                              linestyle=':', color='black', alpha=0.9)
+                              linestyle=':', color='tab:grey', alpha=0.9,
+                              label='Cutoff frequency')
+                axs[i].hlines([thresh],
+                              xmin=0, xmax=np.max(f),
+                              linestyle='--', color='tab:grey', alpha=0.9,
+                              label='Threshold')
                 axs[i].set_ylabel(r'$Power$')
-                # axs[i].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
-                axs[self.x.shape[1] - 1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[i].legend()
+                axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
 
         if self.plot:
             plt.show()
@@ -93,6 +107,9 @@ class SpectralFilter:
         if self.plot:
             fig, axs = plt.subplots(nrows=self.cols, tight_layout=True, sharex=True)
 
+        if not hasattr(axs, '__iter__'):
+            axs = [axs]
+
         for col in range(self.cols):
             # Find frequency index of the respective cutoff frequency
             idx_r = np.argmin(np.abs(omega - self.cutoff_frequency[col]))
@@ -106,14 +123,21 @@ class SpectralFilter:
                 title = '$ \hat{}_{} $'.format('x', str(col+1))
                 # axs[col].set_title(rf'{title}')
                 axs[col].semilogy(omega, x_hat_abs, alpha=1,
-                                  marker='.', linestyle='none')
+                                  marker='.', linestyle='none',
+                                  color='tab:blue', markersize=10,
+                                  label='Discarded frequencies')
                 axs[col].semilogy(omega, x_hat_f_abs, alpha=0.7,
-                                  marker='.', linestyle='none')
+                                  marker='.', linestyle='none',
+                                  color='tab:green', markersize=10,
+                                  label='Preserved frequencies')
                 axs[col].vlines([omega[idx_r], omega[idx_l]], ymin=np.min(x_hat_abs), ymax=np.max(x_hat_abs),
-                                linestyle=':', color='black')
+                                linestyle=':', color='tab:grey',
+                                label='Cutoff frequency')
+                plt.legend()
                 # axs[N-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
                 # axs.set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
                 axs[col].set_ylabel(r'$Power$')
+                axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
 
         plt.show()
 
