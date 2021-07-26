@@ -27,9 +27,7 @@ def halve(x):
     return halved_x
 
 def downsample(x, step):
-    return x.iloc[::step, :].reset_index(drop=True)
-
-
+    return x.iloc[::step, :]
 
 def parse_function_strings(theta_cols):
     fun_strings = []

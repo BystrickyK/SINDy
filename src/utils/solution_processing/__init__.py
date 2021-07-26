@@ -9,12 +9,13 @@ from collections import Counter
 import sympy as sp
 from sympy.utilities.codegen import codegen
 
-def unique_models(models):
+def model_unique(models):
 
     #%% Remove duplicate models
     model_hashes=[]
     drop_row_idx = []
     for idx, model in models.iterrows():
+        # Create model hash using the model's guess candidate function and the model's parameter vector
         model_hash = hash(str(model['lhs_str']) + str(model['xi']))
         if model_hash not in model_hashes:
             model_hashes.append(model_hash)
@@ -37,7 +38,7 @@ def distance_matrix(models, plot=False):
         plot_activation_dist_mat(dist, lhs)
     return dist
 
-def consistent_models(models, dist=None, distance_threshold=0.1, min_cluster_size=3):
+def model_consistent(models, dist=None, distance_threshold=0.1, min_cluster_size=3):
     if dist is None:
         dist = distance_matrix(models, plot=False)
 

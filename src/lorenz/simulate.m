@@ -13,28 +13,40 @@ params.rho = 28;
         
 %% Create external input signal
 disp("Creating input signal...")
-t_end = 60;     % simulation time
-f_s = 1000;     % sampling
-f_c = 0.5;        % cutoff
-u_a = 1000;      % input power
-n = t_end * f_s;
+f_s = 1000;     % sampling frequency
+dt = 1/f_s;     % sampling period
+N = 2^16;     % number of samples
+t_end = (N-1) * dt; % simulation time
 
-% Random walk
-    [filt_b, filt_a] = butter(3, f_c/(f_s/2));  % (order, cutoff freq)
-    u_t = 0:(1/f_s):t_end;
-    squarewave = ((square(u_t, 70)+1)/2)';
-    u = u_a * (rand(length(u_t), 3) - 0.5);
-    u = filter(filt_b, filt_a, u); 
-    
-%     define the input signal as a time-dependent function
-    u_f = @(t) interp1(u_t, u, t);  
+% White noise
+t_res = t_end / N;    % time resolution
+f_res = f_s / N;      % freq resolution
+wnum = -(N/2):(N/2-1);  % wave numbers
+freq = wnum * f_res;  % frequencies
+
+time = 0:dt:t_end;
+
+%% Generate the input signal by band-filtering white noise
+noise = white_noise(N, 3, 0);
+
+f_cutoff = 2;
+noise_bandlimited = spectral_filter(noise, ceil(f_cutoff/f_res));
+
+max_val = 30;
+noise_bandlimited = noise_bandlimited ./ max(noise_bandlimited) * 30;
+
+plot(time, noise_bandlimited)
+% define the input signal as a time-dependent function
+u_fun = @(t) interp1(time, noise_bandlimited, t);  
+
+% plot(time, noise_bandlimited, 'o')
+% hold on
+% plot(time, u_fun(time), '-')
 
 %% Solve
-
-
 disp("Solving...")
 % Define the system of ODEs
-odefun = @(t, x)lorenz(t, x, u_f, params);
+odefun = @(t, x)lorenz(t, x, u_fun, params);
 
 x0 = [1, 2, 3]'; % initial conditions
 tspan = [0, t_end]; % time span
@@ -54,10 +66,9 @@ tmp = num2cell(tmp, 2);
 accels = cellfun(@(in) odefun(in(1), in(2:4)), tmp, 'UniformOutput', false);
 accels = cell2mat(accels);
 accels = reshape(accels, 3, [])';
-results = array2table([x, y, accels, u_f(x)]);
+results = array2table([x, y, accels, u_fun(x)]);
 results.Properties.VariableNames = {'t', 'x_1', 'x_2', 'x_3', 'dx_1', 'dx_2','dx_3', 'u_1', 'u_2', 'u_3'};
-writetable(results, 'lorenz_sim.csv')
-
+writetable(results, 'lorenz_sim_trig.csv')
 
 %% Plot
 % disp("Stackedplot...")
@@ -78,8 +89,8 @@ grid on
 traj = animatedline('MaximumNumPoints', 15000, 'LineWidth', 2, 'Color', 'blue');
 view(3)
 pbaspect([1 1 1])
-xlim([-30 30])
-ylim([-30 30])
+xlim([-40 40])
+ylim([-40 40])
 zlim([0 50])
 hold on
 
@@ -134,7 +145,7 @@ for k = (s+1):s:length(x)
     title(a1, x(k))
     
     addpoints(traj, state(k-s:k,1), state(k-s:k,2), state(k-s:k,3));
-    view(a1, k/5/s, 45);
+    view(a1, k/5/s, 30);
     
     for i = 1:length(state_vars)
        addpoints(lx(i), x(k-s:k), state(k-s:k, i));
@@ -159,3 +170,32 @@ end
 %    writeVideo(writerObj, frame);
 % end
 % close(writerObj);
+%%
+function noise = white_noise(N, cols, seed)
+    % N must be even!
+    
+    rng(seed);
+
+    phase = ( rand(N/2-1, cols)-0.5 ) + ...
+        1j*( rand(N/2-1, cols)-0.5 );  % random complex vector
+    phase = phase ./ abs(phase); % normalize to 1
+
+    ones_row = ones(1,3) * (1+0*1j);
+    noise_hat = [ones_row; flip(conj(phase), 1); ones_row; phase];
+    noise_hat = fftshift(noise_hat);
+    noise = ifft(noise_hat, 'symmetric');
+end
+
+function out = spectral_filter(in, cutoff_idx)
+    in_hat = fft(in);
+    in_hat = fftshift(in_hat);
+    
+    mid = ceil(length(in_hat)/2);
+    filt = zeros(length(in_hat), 1);
+    filt(mid-cutoff_idx:mid+cutoff_idx) = 1;
+    
+    out_hat = in_hat .* filt;
+    out_hat = ifftshift(out_hat);
+    out = ifft(out_hat, 'symmetric');
+end
+    

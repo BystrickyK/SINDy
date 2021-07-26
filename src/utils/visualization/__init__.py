@@ -227,10 +227,10 @@ def plot_implicit_sols(models, theta_labels,
     if axislabels:
         ax.set_yticks([*range(sols.shape[1])])
         ax.set_yticklabels(lhs_labels)
-        ax.yaxis.set_tick_params(rotation=0, labelsize=12)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=15)
         ax.set_xticks([*range(len(theta_labels))])
         ax.set_xticklabels(theta_labels)
-        ax.xaxis.set_tick_params(rotation=90, labelsize=12)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=15)
     if show_labels:
         for (row, col), val in np.ndenumerate(sols):
             ax.text(row, col, '{:0.2f}'.format(val), ha='center', va='center',
@@ -432,7 +432,7 @@ def compare_signals(data1, data2, legend_str, ylabels, title_str    =None):
         axs[col].legend(legend_str)
     axs[cols-1].set_xlabel('Sample index $k$')
 
-def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str    =None):
+def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str=None):
 
     cols = data1.shape[1]
 
@@ -440,25 +440,26 @@ def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str    =Non
     data2 = np.array(data2)
     data3 = np.array(data3)
 
-    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 8))
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(8, 6))
+    if not hasattr(axs, '__iter__'):
+        axs = [axs]
     axs[0].set_title(title_str)
     for col in range(cols):
-        axs[col].plot(data1[:, col], linewidth=3, alpha=1, color='black')
-        axs[col].plot(data2[:, col], linewidth=1.5, alpha=0.75, color='tab:red')
-        axs[col].plot(data3[:, col], linewidth=1.5, alpha=0.75, color='tab:blue')
+        axs[col].plot(data1[:, col], linewidth=3, alpha=0.75, color='tab:grey', marker='o')
+        axs[col].plot(data2[:, col], '--', linewidth=1.5, alpha=0.75, color='tab:red', marker='o')
+        axs[col].plot(data3[:, col], linewidth=1.5, alpha=0.75, color='tab:blue', marker='o')
         axs[col].set_ylabel(ylabels[col])
         axs[col].legend(legend_str)
-    axs[cols-1].set_xlabel('Sample index $k$')
+    axs[-1].set_xlabel('Sample index $k$')
 
 @save_and_plot(filename='lorentz3d', plot=True)
 def plot_lorentz3d(state_data, title=None, **kwargs):
-    with plt.style.context({'./images/BystrickyK.mplstyle'}):
-        fig = plt.figure(tight_layout=True, figsize=(9, 8))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.set_title(title)
-        ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
-        ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
-        ax.set_xlabel(r"$x_1$")
-        ax.set_ylabel(r"$x_2$")
-        ax.set_zlabel(r"$x_3$")
-        return ax
+    fig = plt.figure(tight_layout=True, figsize=(9, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(title)
+    ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
+    ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
+    ax.set_xlabel(r"$x_1$")
+    ax.set_ylabel(r"$x_2$")
+    ax.set_zlabel(r"$x_3$")
+    return ax

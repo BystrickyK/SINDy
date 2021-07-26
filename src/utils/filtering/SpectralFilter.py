@@ -41,8 +41,8 @@ class SpectralFilter:
                                     sharex=True,
                                     tight_layout=True)
 
-        if not hasattr(axs, '__iter__'):
-            axs = [axs]
+            if not hasattr(axs, '__iter__'):
+                axs = [axs]
 
         # for each col in x
         for i, colname in enumerate(self.x.columns):
@@ -107,8 +107,8 @@ class SpectralFilter:
         if self.plot:
             fig, axs = plt.subplots(nrows=self.cols, tight_layout=True, sharex=True)
 
-        if not hasattr(axs, '__iter__'):
-            axs = [axs]
+            if not hasattr(axs, '__iter__'):
+                axs = [axs]
 
         for col in range(self.cols):
             # Find frequency index of the respective cutoff frequency

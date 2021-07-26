@@ -49,6 +49,8 @@ class PI_Identifier:
         self.target = target
 
     def set_guess_cols(self, guess_cols):
+        if not hasattr(guess_cols, '__iter__'):
+            guess_cols = [guess_cols]
         self.guess_idxs = guess_cols
 
     def create_model(self, guess_index, hyperparameter):
@@ -85,6 +87,7 @@ class PI_Identifier:
         val_metric = calculate_rmse(self.theta_val.values, rhs, 0)
         mdl = {'lhs_str': lhs_train.name,
                'xi': rhs,
+               'complexity': np.sum(np.nonzero(rhs)),
                'cond': cond,
                'train_metric': train_metric,
                'val_metric': val_metric}
@@ -92,12 +95,12 @@ class PI_Identifier:
 
         i_end = time.time()
 
-        if self.verbose:
-            nnz_idx = np.nonzero(rhs)[0]
-            rhs_str = ["{:3f}".format(rhs[i]) + '*' + theta_train.columns[i] for i in nnz_idx]
-            rhs_str = " + ".join(rhs_str)
-            print('Runtime:\t\t{:0.2f}ms\nComplexity:\t\t{}\nRHS:\t\t{}\nFit:\t\t{}'.format(
-                (i_end-i_start)*10**3, mdl['complexity'], rhs_str, val_metric))
+        # if self.verbose:
+        #     nnz_idx = np.nonzero(rhs)[0]
+        #     rhs_str = ["{:3f}".format(rhs[i]) + '*' + theta_train.columns[i] for i in nnz_idx]
+        #     rhs_str = " + ".join(rhs_str)
+        #     print('Runtime:\t\t{:0.2f}ms\nComplexity:\t\t{}\nRHS:\t\t{}\nFit:\t\t{}'.format(
+        #         (i_end-i_start)*10**3, mdl['complexity'], rhs_str, val_metric))
 
         return mdl
 
