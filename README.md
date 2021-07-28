@@ -12,3 +12,6 @@ https://user-images.githubusercontent.com/55796835/127328774-a1342b36-4729-4225-
 Lorenz system simulation with feedback inputs. Used for demonstration of identification of a controlled system. Note that the state gravitates more strongly to the right attractor, where it's being pushed by the control law.
 https://user-images.githubusercontent.com/55796835/127328914-39fbc4ed-b294-48a5-9ac7-729e497d5644.mp4
 
+Simulation of the real model and the model identified from its measurement data.
+https://user-images.githubusercontent.com/55796835/127400199-8052015e-af98-4100-9a06-1de49a2cb8a1.mp4
+
