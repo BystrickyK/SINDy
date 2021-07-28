@@ -34,7 +34,7 @@ class SpectralFilter:
         self.cutoff_frequency = []
         self.cutoff_frequency_idx = []
 
-    def find_cutoff_frequencies(self, offset=0):
+    def find_cutoff_frequencies(self, offset=0, std_thresh=2):
 
         if self.plot:
             fig, axs = plt.subplots(nrows=self.x.shape[1],
@@ -55,7 +55,7 @@ class SpectralFilter:
             Pxx_smooth = mov_avg(Pxx, len(Pxx)//32)
             mean = np.mean(Pxx_smooth[int(len(Pxx)*0.5):])
             std = np.std(Pxx_smooth[int(len(Pxx)*0.5):])
-            thresh = mean + 2*std
+            thresh = mean + std_thresh*std
 
             # Set the cutoff frequency as the lowest frequency at which the absolute
             # value of the derivative of PSD is below threshold
@@ -82,7 +82,7 @@ class SpectralFilter:
                               xmin=0, xmax=np.max(f),
                               linestyle='--', color='tab:grey', alpha=0.9,
                               label='Threshold')
-                axs[i].set_ylabel(r'$Power$')
+                axs[i].set_ylabel(rf'$Power\ x_{i}$')
                 axs[i].legend()
                 axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
 

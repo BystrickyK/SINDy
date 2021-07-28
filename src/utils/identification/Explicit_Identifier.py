@@ -23,9 +23,9 @@ class Explicit_Identifier:
         self.verbose = verbose
         self.iters = iters
 
-        eqn = {'lhs_str': [],
+        eqn = {'guess_function_string': [],
                'xi': [],
-               'cond': [],
+               'condition_num': [],
                'train_metric': [],
                'val_metric': []}
         # Initialize empty dataframe
@@ -83,25 +83,25 @@ class Explicit_Identifier:
         i_start = time.time()
 
         # Find sparse solution using STLQ
-        x, residuals, valid, cond = sequentially_thresholded_least_squares(A=self.theta_train, b=target, n=self.iters,
+        x, residuals, valid, condition_num = sequentially_thresholded_least_squares(A=self.theta_train, b=target, n=self.iters,
                                                                   lambda_=hyperparameter, verbose=True)
         tmp = self.theta_train@x - target
         plt.figure()
         plt.plot(self.theta_train.loc[:,'x_2'], linewidth=1.5, color='tab:blue')
         plt.plot(target, '--', linewidth=1.5, color='tab:red')
         print('.')
-        # x, valid, residuals = seq_energy_thresh_ls(A_train=theta_train, b_train=lhs_train,
+        # x, valid, residuals = seq_energy_thresh_ls(A_train=theta_train, b_train=target_function,
         #                                                  n=iters, lambda_=hyperparameter, verbose=False)
 
-        # x, valid, cond = sequentially_energy_thresholded_least_squares(A=theta_train, b=lhs_train,
+        # x, valid, condition_num = sequentially_energy_thresholded_least_squares(A=theta_train, b=target_function,
         #                                                                  weights=None, target_str=self.target, n=self.iters,
         #                                                                  lambda_=hyperparameter, verbose=False)
         # Normalize the solution so its L2 norm is 100
 
         train_metric = np.sqrt(np.sum(np.square(residuals)))
-        mdl = {'lhs_str': target.name,
+        mdl = {'guess_function_string': target.name,
                'xi': x,
-               'cond': cond,
+               'condition_num': condition_num,
                'train_metric': train_metric,
                'val_metric': train_metric}
         self.models = self.models.append(mdl, ignore_index=True)

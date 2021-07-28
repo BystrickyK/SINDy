@@ -16,7 +16,7 @@ def model_unique(models):
     drop_row_idx = []
     for idx, model in models.iterrows():
         # Create model hash using the model's guess candidate function and the model's parameter vector
-        model_hash = hash(str(model['lhs_str']) + str(model['xi']))
+        model_hash = hash(str(model['guess_function_string']) + str(model['xi']))
         if model_hash not in model_hashes:
             model_hashes.append(model_hash)
             drop_row_idx.append(False)
@@ -138,7 +138,7 @@ def model_lambdify_eqn(models, vars):
     symvars = [sp.parse_expr(var) for var in vars]
 
     def lambdify(symeqn):
-        eqn_lambda_ = sp.lambdify(symvars, symeqn)
+        eqn_lambda_ = sp.lambdify(symvars, symeqn, {'sgn':np.sign})
         eqn_lambda = lambda input: eqn_lambda_(*input)
         return eqn_lambda
 

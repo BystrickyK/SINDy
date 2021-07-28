@@ -1,11 +1,11 @@
 axes.titlesize : 20
-axes.labelsize : 18
+axes.labelsize : 20
 axes.grid : True
 
 grid.alpha : 0.75
 
 figure.autolayout : True
-figure.titlesize : 14
+figure.titlesize : 20
 
 lines.linewidth : 2
 lines.markersize : 2

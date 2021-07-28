@@ -196,13 +196,13 @@ def plot_implicit_sols(models, theta_labels,
     theta_labels = d_to_dot(latexify(theta_labels))
     sols = sols[theta_active, :]
 
-    valerrors = models['val_metric']
+    metrics = models['train_metric']
 
-    lhs_labels = models['lhs_str'].values
+    lhs_labels = models['guess_function_string'].values
     lhs_labels = latexify(lhs_labels)
     lhs_labels = d_to_dot(lhs_labels)
     indices = range(len(lhs_labels))
-    valerror_str = [str(np.round(fit,2)) for fit in valerrors]
+    valerror_str = [str(np.round(m,2)) for m in metrics]
     # lhs_labels = [r' | '.join([lhs, str(trainerror), str(valerror),
     #                            ':'.join(['idx',str(idx)])]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
     lhs_labels = [r' | '.join([str(idx), lhs, str(valerror),
@@ -343,23 +343,30 @@ def plot_svd(svd):
 
 @save_and_plot(filename='lorentz3d', plot=True)
 def plot_lorentz3d(state_data, title=None, **kwargs):
-    with plt.style.context({'./images/BystrickyK.mplstyle'}):
-        fig = plt.figure(tight_layout=True, figsize=(9, 8))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.set_title(title)
-        ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
-        ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
-        ax.set_xlabel(r"$x_1$")
-        ax.set_ylabel(r"$x_2$")
-        ax.set_zlabel(r"$x_3$")
-        return ax
+    fig = plt.figure(tight_layout=True, figsize=(9, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(title)
+    ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2], **kwargs)
+    ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
+    ax.set_xlabel(r"$x_1$")
+    ax.set_ylabel(r"$x_2$")
+    ax.set_zlabel(r"$x_3$")
+    return ax
 
-def plot_lorentz3d_ax(state_data, ax):
-        ax.plot3D(state_data[:, 0], state_data[:, 1], state_data[:, 2])
-        ax.scatter3D(state_data[[0, -1],0], state_data[[0, -1],1], state_data[[0, -1], 2], s=60, edgecolors='k', linewidths=2)
-        ax.set_xlabel(r"$x_1$")
-        ax.set_ylabel(r"$x_2$")
-        ax.set_zlabel(r"$x_3$")
+def plot_lorentz3d_ax(state_data, ax, label=None, color='tab:blue', linestyle='-'):
+    ax.plot3D(state_data[:, 0],
+              state_data[:, 1],
+              state_data[:, 2],
+              label=label,
+              linestyle=linestyle,
+              color=color)
+    ax.scatter3D(state_data[[0, -1],0],
+                 state_data[[0, -1],1],
+                 state_data[[0, -1], 2],
+                 s=60, edgecolors=color, linewidths=2)
+    ax.set_xlabel(r"$\dot{x}_1$")
+    ax.set_ylabel(r"$x_2$")
+    ax.set_zlabel(r"$x_3$")
 
 # Plot analytic and spectral derivatives
 @save_and_plot(filename='derivatives', plot=True)
@@ -416,7 +423,21 @@ def plot_dendrogram(model, **kwargs):
     # Plot the corresponding dendrogram
     dendrogram(linkage_matrix, **kwargs)
 
-def compare_signals(data1, data2, legend_str, ylabels, title_str    =None):
+def plot_signals(data1, ylabels, title_str=None, k=0):
+
+    cols = data1.shape[1]
+
+    data1 = np.array(data1)
+
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 5))
+    axs[0].set_title(title_str)
+    for col in range(cols):
+        axs[col].plot(k+np.array(range(len(data1))), data1[:, col],
+                      linewidth=2, alpha=0.75, color='tab:red')
+        axs[col].set_ylabel(ylabels[col])
+    axs[cols-1].set_xlabel('Sample index $k$')
+
+def compare_signals(data1, data2, legend_str, ylabels, title_str=None, k=0):
 
     cols = data1.shape[1]
 
@@ -426,13 +447,15 @@ def compare_signals(data1, data2, legend_str, ylabels, title_str    =None):
     fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 8))
     axs[0].set_title(title_str)
     for col in range(cols):
-        axs[col].plot(data1[:, col], linewidth=3, alpha=0.75, color='tab:blue')
-        axs[col].plot(data2[:, col], linewidth=1.5, alpha=0.75, color='tab:red')
+        axs[col].plot(k+np.array(range(len(data1))), data1[:, col],
+                      linewidth=3, alpha=0.75, color='tab:blue')
+        axs[col].plot(k+np.array(range(len(data2))), data2[:, col],
+                      linewidth=2, alpha=0.9, color='tab:red', linestyle='--')
         axs[col].set_ylabel(ylabels[col])
         axs[col].legend(legend_str)
     axs[cols-1].set_xlabel('Sample index $k$')
 
-def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str=None):
+def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str=None, k=0):
 
     cols = data1.shape[1]
 
@@ -440,14 +463,14 @@ def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str=None):
     data2 = np.array(data2)
     data3 = np.array(data3)
 
-    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(8, 6))
+    fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(10, 6))
     if not hasattr(axs, '__iter__'):
         axs = [axs]
     axs[0].set_title(title_str)
     for col in range(cols):
-        axs[col].plot(data1[:, col], linewidth=3, alpha=0.75, color='tab:grey', marker='o')
-        axs[col].plot(data2[:, col], '--', linewidth=1.5, alpha=0.75, color='tab:red', marker='o')
-        axs[col].plot(data3[:, col], linewidth=1.5, alpha=0.75, color='tab:blue', marker='o')
+        axs[col].plot(k+np.array(range(len(data1))), data1[:, col], linewidth=3, alpha=0.75, color='tab:grey')
+        axs[col].plot(k+np.array(range(len(data2))), data2[:, col], '--', linewidth=1.5, alpha=0.75, color='tab:red')
+        axs[col].plot(k+np.array(range(len(data3))), data3[:, col], linewidth=1.5, alpha=0.75, color='tab:blue')
         axs[col].set_ylabel(ylabels[col])
         axs[col].legend(legend_str)
     axs[-1].set_xlabel('Sample index $k$')
@@ -463,3 +486,6 @@ def plot_lorentz3d(state_data, title=None, **kwargs):
     ax.set_ylabel(r"$x_2$")
     ax.set_zlabel(r"$x_3$")
     return ax
+
+# @save_and_plot(filename='data', plot=True)
+# def plot_measurements(state_data, state_derivative_data,

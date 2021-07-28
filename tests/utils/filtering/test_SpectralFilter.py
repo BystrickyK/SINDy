@@ -146,9 +146,9 @@ def plot_filt_comparison(x_clean, x_hann5, x_hann9, x_spec, x_noisy, dt=0.001):
     plt.show()
 
 def plot_periodogram(x_hat, xn_hat, xf_hat, omega):
-    x_psd = np.abs(x_hat)**1
-    xn_psd = np.abs(xn_hat)**1
-    xf_psd = np.abs(xf_hat)**1
+    x_psd = np.abs(x_hat)**2
+    xn_psd = np.abs(xn_hat)**2
+    xf_psd = np.abs(xf_hat)**2
 
     fig, axs = plt.subplots(nrows=1, ncols=1, tight_layout=True, figsize=(10,6))
     axs.plot(omega, x_psd, label='signal', color='tab:blue')
@@ -157,7 +157,7 @@ def plot_periodogram(x_hat, xn_hat, xf_hat, omega):
              color='tab:red')
     axs.legend()
     axs.set_xlabel("Frequency $\omega\ [\\frac{rad}{s}]$")
-    axs.set_ylabel("Amplitude $A_\omega$")
+    axs.set_ylabel("Power $A_\omega$")
     plt.show()
 
 #%%

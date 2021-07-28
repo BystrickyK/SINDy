@@ -10,7 +10,7 @@ def calculate_fit(A, x, b):
 
 def calculate_mse(A, x, b):
     error_squares = np.square(np.dot(A,x) - b)
-    mse = np.mean(error_squares)
+    mse = np.mean(error_squares, axis=0)
     return mse
 
 def calculate_rmse(A, x, b):

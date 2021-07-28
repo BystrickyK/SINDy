@@ -63,7 +63,7 @@ def sequentially_thresholded_least_squares(A, b, target_str=None,
             print("Number of active terms: {}/{}".format(active_terms, np.product(idx_small.shape)))
 
     x = np.array(x)
-    return x, residuals, valid, np.linalg.cond(Aw)
+    return x, residuals, valid, np.linalg.condition_num(Aw)
 
 def sequentially_energy_thresholded_least_squares(A, b, weights=None, target_str=None,
                                                   lambda_=0.05, n=10, verbose=False):
@@ -195,4 +195,4 @@ def seq_energy_thresh_ls_val(A_train, b_train, A_val, b_val,
             print("Number of active terms: {}/{}".format(active_terms, np.product(idx_small.shape)))
 
     x = np.array(x)
-    return x, valid, np.linalg.cond(Aw)
+    return x, valid, np.linalg.condition_num(Aw)
