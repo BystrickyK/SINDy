@@ -13,5 +13,4 @@ Lorenz system simulation with feedback inputs. Used for demonstration of identif
 https://user-images.githubusercontent.com/55796835/127328914-39fbc4ed-b294-48a5-9ac7-729e497d5644.mp4
 
 Simulation of the real model and the model identified from its measurement data.
-https://user-images.githubusercontent.com/55796835/127400199-8052015e-af98-4100-9a06-1de49a2cb8a1.mp4
-
+https://user-images.githubusercontent.com/55796835/127401223-f218ecb4-ee8d-4804-8ed3-47c5b54b1571.mp4
