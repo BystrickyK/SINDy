@@ -14,3 +14,9 @@ https://user-images.githubusercontent.com/55796835/127328914-39fbc4ed-b294-48a5-
 
 Simulation of the real model and the model identified from its measurement data.
 https://user-images.githubusercontent.com/55796835/127401223-f218ecb4-ee8d-4804-8ed3-47c5b54b1571.mp4
+
+Simulation of the pendulum-cart system
+https://user-images.githubusercontent.com/55796835/127646378-228cc491-b344-4ab0-9caf-d83239d9fb81.mp4
+
+Simulation of the real pendulum-cart model and model identified from noisy data.
+https://user-images.githubusercontent.com/55796835/127646419-c96254b5-f4da-4d52-9395-0e7c516b04c9.mp4
