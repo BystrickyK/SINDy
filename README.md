@@ -18,5 +18,16 @@ https://user-images.githubusercontent.com/55796835/127679128-65357765-4e09-4b51-
 Simulation of the pendulum-cart system
 https://user-images.githubusercontent.com/55796835/127646378-228cc491-b344-4ab0-9caf-d83239d9fb81.mp4
 
-Simulation of the reference pendulum-cart model and model identified from noisy data.
-https://user-images.githubusercontent.com/55796835/127679178-b4b36ae3-f7b3-4906-8b6f-b4c7b89d6510.mp4
+Simulation of the reference pendulum-cart model and model identified using SINDy from noisy data.
+https://user-images.githubusercontent.com/55796835/127749887-452fa243-7efa-4761-86bd-0d9dca009ddb.mp4
+
+Reference model vs Bootstrapped model
+https://user-images.githubusercontent.com/55796835/127749898-489bcebc-fb2e-4f7f-bea3-ada7994ee317.mp4
+
+SINDy model vs Bootstrapped model
+https://user-images.githubusercontent.com/55796835/127749894-e9e21523-7ae3-4ad0-b916-287db34bbfc4.mp4
+
+
+
+
+
