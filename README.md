@@ -27,6 +27,11 @@ https://user-images.githubusercontent.com/55796835/127749898-489bcebc-fb2e-4f7f-
 SINDy model vs Bootstrapped model
 https://user-images.githubusercontent.com/55796835/127749894-e9e21523-7ae3-4ad0-b916-287db34bbfc4.mp4
 
+Lorenz reference vs identified, nonlinear and discontinuous input sgn(u1) to dx1
+https://user-images.githubusercontent.com/55796835/127779031-6db32467-f23b-4574-8389-3a0982e1bd85.mp4
+
+
+
 
 
 
