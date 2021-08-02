@@ -30,6 +30,8 @@ https://user-images.githubusercontent.com/55796835/127749894-e9e21523-7ae3-4ad0-
 Lorenz reference vs identified, nonlinear and discontinuous input sgn(u1) to dx1
 https://user-images.githubusercontent.com/55796835/127779031-6db32467-f23b-4574-8389-3a0982e1bd85.mp4
 
+Model identified from real measurement data
+https://user-images.githubusercontent.com/55796835/127922658-35e7b487-f04e-431a-a6e0-aed10cce4e76.mp4
 
 
 
