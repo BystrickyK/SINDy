@@ -33,6 +33,11 @@ https://user-images.githubusercontent.com/55796835/127779031-6db32467-f23b-4574-
 Model identified from real measurement data
 https://user-images.githubusercontent.com/55796835/127922658-35e7b487-f04e-431a-a6e0-aed10cce4e76.mp4
 
+The real measurement data, visualized
+https://user-images.githubusercontent.com/55796835/127937959-67bdb377-eedd-4c89-b2cd-edfd253517ce.mp4
+
+
+
 
 
 
