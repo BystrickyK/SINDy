@@ -188,19 +188,19 @@ codegen(('doublePendIdentified', symeqns),
         language='octave', to_files=True)
 
 #%%
-# good_guesses = []
-# for eqn, results in dynamic_model.items():
-#     print(eqn)
-#     models = results['models']
-#     active_cols = models['active'].values
-#     active_cols = np.vstack(active_cols)
-#     active_cols = active_cols.any(axis=0)
-#     good_guesses.append(active_cols)
-# good_guesses = np.array(good_guesses)
-# # good_guesses = good_guesses.any(axis=0)
-# # good_guesses = np.argwhere(good_guesses).T[0]
-# good_guesses = [np.argwhere(g).T[0] for g in good_guesses]
-#
-# guess_cache_name = 'guessColumnsReal'
-# with open(guess_cache_name, 'wb') as f:
-#     pickle.dump(good_guesses, f)
+good_guesses = []
+for eqn, results in dynamic_model.items():
+    print(eqn)
+    models = results['models']
+    active_cols = models['active'].values
+    active_cols = np.vstack(active_cols)
+    active_cols = active_cols.any(axis=0)
+    good_guesses.append(active_cols)
+good_guesses = np.array(good_guesses)
+# good_guesses = good_guesses.any(axis=0)
+# good_guesses = np.argwhere(good_guesses).T[0]
+good_guesses = [np.argwhere(g).T[0] for g in good_guesses]
+
+guess_cache_name = 'guessColumnsReal'
+with open(guess_cache_name, 'wb') as f:
+    pickle.dump(good_guesses, f)

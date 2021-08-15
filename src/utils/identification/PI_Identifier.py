@@ -42,7 +42,7 @@ class PI_Identifier:
         self.target_function_string = target
 
     def set_guess_cols(self, guess_cols):
-        if not isinstance(guess_cols, list):
+        if not hasattr(guess_cols, '__iter__') or isinstance(guess_cols, str):
             guess_cols = [guess_cols]
 
         if isinstance(guess_cols[0], str):

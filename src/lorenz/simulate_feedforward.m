@@ -86,11 +86,6 @@ results = array2table([x, y, accels, u_fun(x, y)]);
 results.Properties.VariableNames = {'t', 'x_1', 'x_2', 'x_3', 'dx_1', 'dx_2','dx_3', 'u_1', 'u_2', 'u_3'};
 writetable(results, savepath)
 
-%% Plot
-disp("Stackedplot...")
-figure()
-stackedplot(results, '-|k', 'XVariable', 't', 'LineWidth', 1.25)
-grid on
 
 %% Animation
 disp("Animating...")

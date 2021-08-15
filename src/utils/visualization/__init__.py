@@ -141,10 +141,10 @@ def plot_corr(corr, regressor_names, labels=True, ticks=True):
     if ticks:
         ax.set_yticks([*range(min(labelstr.shape))])
         ax.set_yticklabels(labelstr)
-        ax.yaxis.set_tick_params(rotation=0, labelsize=20)
+        ax.yaxis.set_tick_params(rotation=0, labelsize=12)
         ax.set_xticks([*range(min(labelstr.shape))])
         ax.set_xticklabels(labelstr)
-        ax.xaxis.set_tick_params(rotation=90, labelsize=20)
+        ax.xaxis.set_tick_params(rotation=90, labelsize=12)
     fig.colorbar(im, ax=ax, orientation='horizontal', fraction=0.046, pad=0.04, shrink=0.5)
     if labels:
         for (col, row), val in np.ndenumerate(corr):
@@ -186,7 +186,8 @@ def plot_activation_dist_mat(dist_mat, lhs_guess_strings, labels=True):
 
 @save_and_plot(filename='implicit_sols', stamp=True, plot=True)
 def plot_implicit_sols(models, theta_labels,
-                       show_labels=False, axislabels=True):
+                       show_labels=False, axislabels=True,
+                       aic=None):
 
     sols = np.vstack(models['xi'].values)
     sols = np.array(sols).T
@@ -196,19 +197,28 @@ def plot_implicit_sols(models, theta_labels,
     theta_labels = d_to_dot(latexify(theta_labels))
     sols = sols[theta_active, :]
 
-    metrics = models['train_metric']
+    train_rmse = models['train_metric']
 
-    lhs_labels = models['guess_function_string'].values
-    lhs_labels = latexify(lhs_labels)
-    lhs_labels = d_to_dot(lhs_labels)
-    indices = range(len(lhs_labels))
-    valerror_str = [str(np.round(m,2)) for m in metrics]
-    # lhs_labels = [r' | '.join([lhs, str(trainerror), str(valerror),
-    #                            ':'.join(['idx',str(idx)])]) for idx,trainerror,valerror,lhs in zip(indices, trainerror_str, valerror_str, lhs_labels)]
-    lhs_labels = [r' | '.join([str(idx), lhs, str(valerror),
-                               ]) for idx,valerror,lhs in zip(indices, valerror_str, lhs_labels)]
+    guess_function_str = models['guess_function_string'].values
+    guess_function_str = latexify(guess_function_str)
+    guess_function_str = d_to_dot(guess_function_str)
+    indices = range(len(guess_function_str))
 
-    figsize = tuple(np.array(sols.shape) * 0.22 + 3)
+    train_rmse = [str(np.round(m, 2)) for m in train_rmse]
+    if aic is None:
+        y_labels = [r' | '.join([str(idx), guess, rmse,
+                                   ]) for
+                      idx, guess, rmse 
+                      in zip(indices, guess_function_str, train_rmse)]
+    else:
+        val_aic = models['rmse']
+        val_aic = [str(np.round(m, 2)) for m in val_aic]
+        y_labels = [r' | '.join([str(idx), guess, rmse, aic,
+                                 ]) for
+                    idx, guess, rmse, aic
+                    in zip(indices, guess_function_str, train_rmse, val_aic)]
+
+    figsize = tuple(np.array(sols.shape) * 0.25 + 4)
     if figsize[1] > 70:
         figsize = np.array(figsize)
         figsize[1] = figsize[1] * 0.5
@@ -226,7 +236,7 @@ def plot_implicit_sols(models, theta_labels,
     ax.matshow(sols.T, cmap=colormap, vmin=-0.0000001, vmax=0.0000001)
     if axislabels:
         ax.set_yticks([*range(sols.shape[1])])
-        ax.set_yticklabels(lhs_labels)
+        ax.set_yticklabels(y_labels)
         ax.yaxis.set_tick_params(rotation=0, labelsize=15)
         ax.set_xticks([*range(len(theta_labels))])
         ax.set_xticklabels(theta_labels)
@@ -242,8 +252,8 @@ def plot_implicit_sols(models, theta_labels,
 def pareto_front(models, use_train=True, title='title'):
 
     complexities = [np.sum(active) for active in models['active']]
-    val = models['rmse_val']
-    train = models['rmse_train']
+    val = models['validation_metric']
+    train = models['train_metric']
 
     frontier_error = dict(zip(complexities, val))  # Initialize
     for comp, err in zip(complexities, val):
@@ -272,7 +282,6 @@ def pareto_front(models, use_train=True, title='title'):
 
     fig, ax = plt.subplots(1, 1,
                            figsize=(6,4), tight_layout=True)
-    # with plt.style.context({'seaborn', './images/BystrickyK.mplstyle'}):
     if use_train:
         ax.plot(complexities, train, marker='.', markersize=10, alpha=0.7, linestyle='none')
     else:
@@ -433,9 +442,9 @@ def plot_signals(data1, ylabels, title_str=None, k=0):
     axs[0].set_title(title_str)
     for col in range(cols):
         axs[col].plot(k+np.array(range(len(data1))), data1[:, col],
-                      linewidth=2, alpha=0.75, color='tab:red')
-        axs[col].set_ylabel(ylabels[col])
-    axs[cols-1].set_xlabel('Sample index $k$')
+                      linewidth=2, alpha=0.75, color='tab:blue')
+        axs[col].set_ylabel(ylabels[col], fontsize=18)
+    axs[cols-1].set_xlabel('Sample index $k$', fontsize=18)
 
 def compare_signals(data1, data2, legend_str, ylabels, title_str=None, k=0):
 
@@ -445,15 +454,17 @@ def compare_signals(data1, data2, legend_str, ylabels, title_str=None, k=0):
     data2 = np.array(data2)
 
     fig, axs = plt.subplots(nrows=cols, tight_layout=True, sharex=True, figsize=(12, 8))
+    if not hasattr(axs, '__iter__'):
+        axs = [axs]
     axs[0].set_title(title_str)
     for col in range(cols):
         axs[col].plot(k+np.array(range(len(data1))), data1[:, col],
-                      linewidth=3, alpha=0.75, color='tab:blue')
+                      linewidth=4, alpha=0.75, color='tab:blue')
         axs[col].plot(k+np.array(range(len(data2))), data2[:, col],
-                      linewidth=2, alpha=0.9, color='tab:red', linestyle='--')
-        axs[col].set_ylabel(ylabels[col])
-        axs[col].legend(legend_str)
-    axs[cols-1].set_xlabel('Sample index $k$')
+                      linewidth=2, alpha=0.8, color='tab:red', linestyle='--')
+        axs[col].set_ylabel(ylabels[col], fontsize=20)
+        axs[col].legend(legend_str, fontsize=16)
+    axs[cols-1].set_xlabel('Sample index $k$', fontsize=20)
 
 def compare_signals3(data1, data2, data3, legend_str, ylabels, title_str=None, k=0):
 

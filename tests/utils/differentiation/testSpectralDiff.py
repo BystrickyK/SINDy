@@ -3,12 +3,10 @@ import matplotlib.pyplot as plt
 from src.utils.solution_processing import *
 from differentiation.spectral_derivative import compute_spectral_derivative
 from differentiation.finite_diff import compute_finite_diff
-from filtering.SpectralFilter import SpectralFilter
-from filtering.KernelFilter import KernelFilter
 from tools import halve, mirror, add_noise, downsample
 from src.utils.theta_processing.single_pend import *
-from sklearn.model_selection import TimeSeriesSplit
 import matplotlib as mpl
+from containers.DynaFrame import DynaFrame
 import os
 from definitions import ROOT_DIR
 
@@ -18,15 +16,27 @@ plt.style.use({'seaborn', style_path})
 
 mpl.use('Qt5Agg')
 
+def load_data(data_path):
+    sim_data = pd.read_csv(data_path)
+    sim_data_x = sim_data.loc[:, ['s', 'phi1', 'Ds', 'Dphi']]
+    sim_data_x.columns = ['x_' + str(i) for i in [1,2,3,4]]
+    sim_data_dx = sim_data.loc[:, ['Ds', 'Dphi', 'DDs', 'DDphi']]
+    sim_data_dx.columns = ['dx_' + str(i) for i in [1,2,3,4]]
+    sim_data_u = sim_data.loc[:, 'u']
+    sim_data_t = sim_data.loc[:, 't']
+    sim_data = pd.concat([sim_data_t, sim_data_x, sim_data_dx, sim_data_u], axis=1)
+    sim_data = DynaFrame(sim_data)
+    dt = sim_data.get_dt()
+    sim_data = sim_data.reset_index(drop=True)
+    return DynaFrame(sim_data), dt
+
 datafile = 'singlePend.csv'
 data_path = os.path.join(ROOT_DIR,'data','singlePend','simulated',datafile)
-cache_path = os.path.join(ROOT_DIR,'src', 'singlePendulumCart', 'cache')
 
 # Get training dataset
-sim_data = pd.read_csv(data_path)
-dt = sim_data.loc[1, 't'] - sim_data.loc[0, 't']
-X = sim_data.loc[:, ('x1', 'x2')]
-DX = sim_data.loc[:, ('dx1', 'dx2')]
+sim_data, dt = load_data(data_path)
+X = sim_data.loc[:, ('x_1', 'x_2')]
+DX = sim_data.loc[:, ('dx_1', 'dx_2')]
 
 #%%
 steps = np.arange(1,81)

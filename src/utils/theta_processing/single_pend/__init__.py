@@ -5,8 +5,10 @@ import pandas as pd
 def create_basis(data):
     # identity = pd.Series((data['u'].values*0+1).T[0], data['u'].index, name='1')
     trig_basis_part = trigonometric_library(data['X'].iloc[:, 1])
-    theta_basis = pd.concat([data['X'].iloc[:, [2,3]], trig_basis_part, data['u'],
-                             data['DX'].iloc[:, [2,3]]], axis=1)
+    theta_basis = pd.concat([data['X'].loc[:, ['x_3', 'x_4']],
+                             trig_basis_part,
+                             data['u'],
+                             data['DX'].loc[:, ['dx_3', 'dx_4']]], axis=1)
     return theta_basis
 
 def drop_bad_terms(theta):

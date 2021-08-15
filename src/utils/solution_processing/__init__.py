@@ -63,9 +63,22 @@ def model_consistent(models, dist=None, distance_threshold=0.1, min_cluster_size
 
     return models
 
+def model_sparse(models, threshold=10):
+    models = models[ models['n_terms'] < threshold ] # extract sparse models
+    return models
+
 def model_activations(models):
     models['active'] = models.apply(lambda row: np.abs(row['xi'])>0, axis=1)
     models['n_terms'] = models.apply(lambda row: np.sum(np.array(row['active'])), axis=1)
+    return models
+
+def model_val_rmse(models, theta_val):
+    val_metrics = []
+    for i, model in models.iterrows():
+        xi = model['xi']
+        rmse = calculate_rmse(theta_val, xi, 0)
+        val_metrics.append(rmse)
+    models['validation_metric'] = val_metrics
     return models
 
 def model_aic(models, theta):
@@ -73,6 +86,9 @@ def model_aic(models, theta):
                              axis=1)
     models['aic'] = models['aic'] - models['aic'].min()
     return models
+
+# def model_sparse(models, threshold):
+#     sparse_idx =
 
 def model_equation_strings(models, theta_cols):
 
@@ -146,10 +162,19 @@ def model_lambdify_eqn(models, vars):
     return models
 
 
-def model_validate(models, theta, target_label):
+def model_validate(models, theta):
+    def calc_rmse(xi):
+        error = np.dot(theta, xi)
+        rmse = np.sqrt(np.mean(np.square(error)))
+        return rmse
+
+    models['rmse'] = models.apply(lambda row: calc_rmse(row['xi']), axis=1)
+    return models
+
+def model_validate(models, val_data_xu, val_data_dx):
     def calc_rmse(model):
-        preds = np.apply_along_axis(model, axis=1, arr=theta)
-        error = preds - theta.loc[:, target_label]
+        preds = np.apply_along_axis(model, axis=1, arr=val_data_xu)
+        error = preds - val_data_dx
         rmse = np.sqrt(np.mean(np.square(error)))
         return rmse
 

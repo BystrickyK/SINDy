@@ -14,6 +14,7 @@ def calculate_mse(A, x, b):
     return mse
 
 def calculate_rmse(A, x, b):
+    A = np.array(A)
     mse = calculate_mse(A, x, b)
     rmse = np.sqrt(mse)
     return rmse
@@ -23,8 +24,18 @@ def calculate_rmse(A, x, b):
 def calculate_aic(A, x, b):
     mse = calculate_mse(A, x, b)
     n = A.shape[0]
-    aic = n*np.log(mse) + 2*np.linalg.norm(x, 0)
+    aic = np.log(mse) + 2*np.linalg.norm(x, 0)
     return aic
+
+# def calculate_mse_true_est(true, est):
+#     err = true - est
+#     mse = np.mean(np.square(err), axis=0)
+#     return mse
+#
+# def calculate_aic_true_est(true, est, num_params):
+#     mse = calculate_mse_true_est(true, est)
+#     n = true.shape[0]
+#     aic =
 
 # def calculate_model_validation(models, sim_data, y_real):
 #

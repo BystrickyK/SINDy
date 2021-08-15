@@ -26,6 +26,7 @@ mpl.use('Qt5Agg')
 
 # datafile = 'lorenz_sim_trig.csv'
 datafile = 'lorenz_sim_feedback2.csv'
+datafile = 'lorenz_sim_sgn.csv'
 data_path = os.path.join(ROOT_DIR,'data','lorenz',datafile)
 
 # Get dataset
@@ -36,15 +37,12 @@ sim_data = DynaFrame(sim_data)
 dt = sim_data.get_dt()
 
 
+sim_data, sim_data_test = train_test_split(sim_data, test_size=0.2, shuffle=False, random_state=42)
 #%% Split the dataset into training and validation
 # sim_data, sim_data_test = train_test_split(sim_data, test_size=0.1, random_state=0, shuffle=False)
 sim_data = DynaFrame(sim_data)
 time = range(len(sim_data)) * dt
 
-#%% Load validation data set
-datafile = 'lorenz_sim_feedback_val.csv'
-data_path = os.path.join(ROOT_DIR,'data','lorenz',datafile)
-sim_data_test = pd.read_csv(data_path)
 #%% Add noise
 state_data = sim_data.get_state_vars()
 state_data_clean = state_data.copy()
@@ -53,37 +51,42 @@ state_data_noisy.iloc[:,:] = add_noise(state_data.values, [0.2, 0.2, 0.2])
 state_data_noisy.reset_index(drop=True, inplace=True)
 
 filter = SpectralFilter(state_data_noisy, dt, plot=False)
-filter.find_cutoff_frequencies(offset=-3, std_thresh=12)
+filter.find_cutoff_frequencies(offset=0)
 state_data = filter.filter()
 
 # filter = KernelFilter(kernel_size=51)
 # state_data = filter.filter(state_data_noisy)
 
+#%%
 state_data.reset_index(drop=True, inplace=True)
 state_data_clean.reset_index(drop=True, inplace=True)
-# k = [900, 1100]
-# compare_signals3(state_data_clean.loc[k[0]:k[1],:],
-#                  state_data_noisy.loc[k[0]:k[1],:],
-#                  state_data.loc[k[0]:k[1],:],
-#                  ['Clean','Noisy','Filtered'],
-#                  [r"$x_1$", r"$x_2$", r"$x_3$"],
-#                  k=k[0])
-
+k = [0, -1]
+compare_signals3(state_data_clean.iloc[k[0]:k[1],:],
+                 state_data_noisy.iloc[k[0]:k[1],:],
+                 state_data.iloc[k[0]:k[1],:],
+                 ['Clean','Noisy','Filtered'],
+                 [r"$x_1$", r"$x_2$", r"$x_3$"],
+                 k=k[0])
 
 #%%
 state_derivative_data_clean = sim_data.get_state_derivative_vars()
 state_derivative_data = compute_spectral_derivative(state_data, dt)
 state_derivative_data = create_df(state_derivative_data, 'dx')
 
-# k = [700, 1300]
-# state_derivative_data.reset_index(drop=True, inplace=True)
-# state_derivative_data_clean.reset_index(drop=True, inplace=True)
-# compare_signals(state_derivative_data_clean.loc[k[0]:k[1],:],
-#                 state_derivative_data.loc[k[0]:k[1],:],
-#                 ['Clean','Estimated'],
-#                 [r"$\dot{x}_1$", r"$\dot{x}_2$", r"$\dot{x}_3$"],
-#                 k=k[0])
+k = [0, -1]
+state_derivative_data.reset_index(drop=True, inplace=True)
+state_derivative_data_clean.reset_index(drop=True, inplace=True)
+compare_signals(state_derivative_data_clean.loc[k[0]:k[1],:],
+                state_derivative_data.loc[k[0]:k[1],:],
+                ['Clean','Estimated'],
+                [r"$\dot{x}_1$", r"$\dot{x}_2$", r"$\dot{x}_3$"],
+                k=k[0])
 
+compare_signals(state_derivative_data_clean.loc[:,:],
+                state_derivative_data.loc[:,:],
+                ['Clean','Estimated'],
+                [r"$\dot{x}_1$", r"$\dot{x}_2$", r"$\dot{x}_3$"],
+                k=k[0])
 
 #%%
 input_data = sim_data.get_input_vars().reset_index(drop=True)
@@ -116,22 +119,43 @@ def create_theta(sim_data):
     state_data = sim_data.get_state_vars()
     state_derivative_data = sim_data.get_state_derivative_vars()
 
-    # trig_lib = trigonometric_library(state_data)
-    # trig_states.loc[:, 'sgn(x_1)'] = np.sign(sim_data.loc[:, 'x_1'])
-    # trig_lib.reset_index(drop=True, inplace=True)
-
+    trig_inputs = trigonometric_library(input_data)
     identification_data = pd.concat((input_data,
-                               state_data), axis=1).reset_index(drop=True)
+                                     state_data), axis=1)
+    identification_data = DynaFrame(identification_data)
 
-    # theta1 = product_library(identification_data).reset_index(drop=True)
+    theta1 = product_library(trig_inputs, identification_data).reset_index(drop=True)
     theta2 = poly_library(identification_data, (1, 2)).reset_index(drop=True)
-    # trig_lib.reset_index(drop=True, inplace=True)
+    trig_inputs.reset_index(drop=True, inplace=True)
     state_derivative_data.reset_index(drop=True, inplace=True)
 
-    theta = pd.concat([theta2, state_derivative_data], axis=1)
+    theta = pd.concat([theta1, theta2, trig_inputs, state_derivative_data], axis=1)
     return theta
 
+# def create_theta(sim_data):
+#     sim_data = DynaFrame(sim_data)
+#     # Real signals
+#     input_data = sim_data.get_input_vars()
+#     state_data = sim_data.get_state_vars()
+#     state_derivative_data = sim_data.get_state_derivative_vars()
+#
+#     # trig_lib = trigonometric_library(state_data)
+#     # trig_states.loc[:, 'sgn(x_1)'] = np.sign(sim_data.loc[:, 'x_1'])
+#     # trig_lib.reset_index(drop=True, inplace=True)
+#
+#     identification_data = pd.concat((input_data,
+#                                state_data), axis=1).reset_index(drop=True)
+#
+#     # theta1 = product_library(identification_data).reset_index(drop=True)
+#     theta2 = poly_library(identification_data, (1, 2)).reset_index(drop=True)
+#     # trig_lib.reset_index(drop=True, inplace=True)
+#     state_derivative_data.reset_index(drop=True, inplace=True)
+#
+#     theta = pd.concat([theta2, state_derivative_data], axis=1)
+#     return theta
+
 theta = create_theta(sim_data)
+theta['sgn(u_1)'] = np.sign(sim_data['u_1'].reset_index(drop=True))
 
 # %% Compute the solution
 
@@ -223,16 +247,16 @@ for eqn in eqns_to_identify:
 derivative_trajectory_model = np.array(derivative_trajectory_model).T
 derivative_trajectory_real = np.array(derivative_trajectory_real).T
 
-fig = plt.figure(tight_layout=True, figsize=(9,8))
+# fig = plt.figure(tight_layout=True, figsize=(9,8))
 compare_signals(derivative_trajectory_real, derivative_trajectory_model,
-                ['Real', 'Model'], ['$\\dot{x_1}$', '$\\dot{x_2}$', '$\\dot{x_3}$'])
+                ['Reference', 'Model'], ['$\\dot{x}_1$', '$\\dot{x}_2$', '$\\dot{x}_3$'])
 # ax = fig.add_subplot(111, projection='3d')
 # plot_lorentz3d_ax(derivative_trajectory_model, ax, 'Model', 'tab:blue')
 # plot_lorentz3d_ax(derivative_trajectory_real, ax, 'Real', 'tab:red', '--')
-plt.legend()
 #%%
+
 errors = derivative_trajectory_real - derivative_trajectory_model
-plot_signals(errors, ['$\\epsilon_1$', '$\\epsilon_2$', '$\\epsilon_3$'])
+plot_signals(errors, ['$\\epsilon_1(\\dot{x}_1)$', '$\\epsilon_2(\\dot{x}_2)$', '$\\epsilon_3(\\dot{x}_3)$'])
 err_str = [str(e) for e in np.round(np.sqrt(np.mean(np.square(errors), axis=0)), 5)]
 print(err_str)
 #%%
@@ -260,6 +284,10 @@ print(err_str)
 # plot_periodogram(u, dt)
 # omega, x_hat = fft(u, dt)
 #%%
+dynamic_model['dx_1']['symeqn'] = dynamic_model['dx_1']['models'].iloc[1, :]['eqn_sym']
+#%%
+
+
 symeqns = [dynamic_model[eqn]['symeqn'] for eqn in eqns_to_identify]
 latex_output = ' \\\\ \n  '.join([sp.latex(eqn)  for eqn in symeqns])
 latex_output_file = 'model_latex.txt'
@@ -267,5 +295,5 @@ with open(latex_output_file, 'w') as file:
     file.write(latex_output)
 
 
-codegen(('identified_model4', symeqns),
+codegen(('identified_model_sgn_noisy', symeqns),
         language='octave', to_files=True)

@@ -1,0 +1,2 @@
+\frac{0.01142 u \cos^{2}{\left(x_{2} \right)} - 0.0226 u + 2.29663 x_{3} - 0.02736 x_{4}^{2} \sin{\left(x_{2} \right)}}{0.5374 \cos^{2}{\left(x_{2} \right)} - 1.0} \\ 
+  \frac{- 0.02791 u \cos^{2}{\left(x_{2} \right)} + 0.09094 u \cos{\left(x_{2} \right)} - 8.91299 x_{3} \cos{\left(x_{2} \right)} + 0.04447 x_{4}^{2} \sin{\left(2.0 x_{2} \right)} + 42.87518 \sin{\left(x_{2} \right)} - 7.65352 \sin{\left(2.0 x_{2} \right)}}{0.29978 \cos{\left(x_{2} \right)} - 1.0}

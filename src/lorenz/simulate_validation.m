@@ -5,19 +5,12 @@ clear all;
 close all;
 clc;
 
-savefile = 'lorenz_sim_sgn.csv';
-savepath = ['.' filesep '..' filesep '..' filesep 'data' filesep 'lorenz' filesep savefile];
-
-params.sigma = 10;
-params.beta = 8/3;
-params.rho = 28;
-        
         
 %% Create external input signal
 disp("Creating input signal...")
 f_s = 1000;     % sampling frequency
 dt = 1/f_s;     % sampling period
-N = 2^14;     % number of samples
+N = 2^13;     % number of samples
 t_end = (N-1) * dt; % simulation time
 
 % White noise
@@ -45,8 +38,8 @@ u_fun = @(t, x) (control_law(x) + random_process(t));
 %% Solve
 disp("Solving...")
 % Define the system of ODEs
-odefun_real = @(t, x)lorenz_2(t, x, u_fun, params);
-odefun_model = @(t, x)lorenz_2_id(t, x, u_fun);
+odefun_real = @(t, x)identified_model_sgn_clean_(t, x, u_fun);
+odefun_model = @(t, x)identified_model_sgn_noisy_(t, x, u_fun);
 
 x0 = [-15, -15, 15]'; % initial conditions
 tspan = [0, t_end]; % time span
@@ -75,14 +68,14 @@ t = tiledlayout(3,4, 'TileSpacing', 'tight', 'Padding', 'compact');
 
 a1 = nexttile([3, 2]);
 grid on
-traj_real = animatedline('MaximumNumPoints', 8000, 'LineWidth', 1.5, 'Color', 'blue');
+traj_real = animatedline('MaximumNumPoints', 8000, 'LineWidth', 2.5, 'Color', '#1F77B4');
 point_real = animatedline('MarkerSize', 6, 'Color', 'blue',...
-        'Marker', 'o', 'MaximumNumPoints', 1, 'MarkerFaceColor', 'blue');
+        'Marker', 'o', 'MaximumNumPoints', 1, 'MarkerFaceColor', '#1F77B4');
     
-traj_model = animatedline('MaximumNumPoints', 8000, 'LineWidth', 1.5, 'Color', 'red',...
+traj_model = animatedline('MaximumNumPoints', 8000, 'LineWidth', 2.5, 'Color', '#D62728',...
     'linestyle', '--');
 point_model = animatedline('MarkerSize', 6, 'Color', 'red',...
-        'Marker', 'o', 'MaximumNumPoints', 1, 'MarkerFaceColor', 'red');
+        'Marker', 'o', 'MaximumNumPoints', 1, 'MarkerFaceColor', '#D62728');
     
 view(3)
 pbaspect([1 1 1])
@@ -99,7 +92,7 @@ ax = gca;
     ax.ZLabel.Interpreter = 'latex';
     ax.ZLabel.FontSize = 25;
     ax.ZLabel.String = '$x_3$';
-    legend({'Real', '', 'Model', ''}, 'location', 'northwest',...
+    legend({'Reference model', '', 'Identified model', ''}, 'location', 'northwest',...
         'fontsize', 20)
 hold on
 
@@ -108,11 +101,12 @@ tile_locs = [3, 7, 11];
 for i = 1:length(state_vars)
     var = state_vars{i};
     ax(i) = nexttile(tile_locs(i));
+    yline(ax(i), 0, 'color', 'black', 'linewidth', 2)
     ax(i).YLabel.Interpreter = 'latex';
     ax(i).YLabel.FontSize = 20;
     ax(i).YLabel.String = var;
-    lx_real(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'blue');
-    lx_model(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', 'red', 'linestyle', '--');
+    lx_real(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', '#1F77B4');
+    lx_model(i) = animatedline(ax(i), 'LineWidth', 2, 'Color', '#D62728', 'linestyle', '--');
     xlim(tspan);
     grid on
 end
@@ -122,11 +116,12 @@ tile_locs = [4, 8, 12];
 for i = 1:length(state_vars)
     var = der_vars{i};
     adx(i) = nexttile(tile_locs(i));
+    yline(adx(i), 0, 'color', 'black', 'linewidth', 2)
     adx(i).YLabel.Interpreter = 'latex';
     adx(i).YLabel.FontSize = 20;
     adx(i).YLabel.String = var;
-    ldx_real(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', 'blue');
-    ldx_model(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', 'red', 'linestyle', '--');
+    ldx_real(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', '#1F77B4');
+    ldx_model(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', '#D62728', 'linestyle', '--');
     xlim(tspan);
     grid on
 end
@@ -182,10 +177,10 @@ for k = (s+1):s:length(x)
     for i = 1:length(state_vars)
        update_plot(lx_real(i), state_real, k, i)
        update_plot(lx_model(i), state_model, k, i)
-       ax(i).XLim = [x(k)-5, x(k)+2];
+       ax(i).XLim = [x(k)-3, x(k)+0.5];
        update_plot(ldx_real(i), dot_state_real, k, i)
        update_plot(ldx_model(i), dot_state_model, k, i)
-       adx(i).XLim = [x(k)-5, x(k)+2];
+       adx(i).XLim = [x(k)-3, x(k)+0.5];
 %        update_plot(lu(i), inputs, k, i)
 %        au(i).XLim = [x(k)-5, x(k)+2];
     end
@@ -238,7 +233,7 @@ for i = 1:length(state_vars)
     var = der_vars{i};
     adx(i) = nexttile(tile_locs(i));
     adx(i).YLabel.Interpreter = 'latex';
-    adx(i).YLabel.FontSize = 20;
+    adx(i).YLabel.FontSize = 22;
     adx(i).YLabel.String = var;
     ldx_real(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', 'blue');
     ldx_model(i) = animatedline(adx(i), 'LineWidth', 2, 'Color', 'red', 'linestyle', '--');
@@ -247,12 +242,12 @@ for i = 1:length(state_vars)
     addpoints(ldx_real(i), x, dot_state_real(:,i));
     addpoints(ldx_model(i), x, dot_state_model(:,i));
 end
-xlabel('$Time\ t [s]$', 'FontSize', 18, interpreter='latex')
+xlabel('$Time\ t [s]$', 'FontSize', 20, interpreter='latex')
 linkaxes(adx, 'x')
 title(adx(1), 'State derivative variables', 'interpreter', 'latex',...
     'fontsize', 20)
 
-legend(adx(1), {'Real', 'Model'}, 'fontsize', 16,...
+legend(adx(1), {'Reference model', 'Identified model'}, 'fontsize', 16,...
     'location', 'northeastoutside')
 
 %%
@@ -287,7 +282,7 @@ ax = gca;
     ax.ZLabel.Interpreter = 'latex';
     ax.ZLabel.FontSize = 25;
     ax.ZLabel.String = '$x_3$';
-    legend({'Real', '', 'Model', ''}, 'location', 'northwest',...
+    legend({'Reference model', '', 'Identified model', ''}, 'location', 'northwest',...
         'fontsize', 20)
 hold on
 

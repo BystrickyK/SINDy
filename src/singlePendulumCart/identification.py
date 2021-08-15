@@ -186,7 +186,8 @@ for eqn_str, eqn_model in eqns_models.items():
     dynamic_model[eqn_str] = {}
 
     # %% Remove duplicate models
-    models = unique_models(models, theta.columns)
+
+    models = mode(models, theta.columns)
     models = models.loc[models.fit > 0.7, :].reset_index(drop=True)
 
     eqns = [[*zip(np.round(model.sol[model.active], 3), theta.columns[model.active])]

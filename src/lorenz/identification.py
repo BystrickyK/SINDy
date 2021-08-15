@@ -224,5 +224,5 @@ with open(latex_output_file, 'w') as file:
     file.write(latex_output)
 
 
-codegen(('identified_model3', symeqns),
+codegen(('identified_model_sqn_clean', symeqns),
         language='octave', to_files=True)

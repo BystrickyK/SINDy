@@ -7,6 +7,16 @@ from src.utils.fft.fft import fft
 from src.utils.fft.ifft import ifft
 from tools import mirror, halve
 from containers.DynaFrame import DynaFrame
+import matplotlib as mpl
+import os
+from definitions import ROOT_DIR
+
+mpl.use('Qt5Agg')
+
+style_path = os.path.join(ROOT_DIR, 'src', 'utils', 'visualization', 'BystrickyK.mplstyle')
+print(style_path)
+plt.style.use({'seaborn', style_path})
+
 
 def mov_avg(x, size):
     conv = np.convolve(x, np.ones(size), 'same') / size
@@ -44,6 +54,11 @@ class SpectralFilter:
             if not hasattr(axs, '__iter__'):
                 axs = [axs]
 
+        if not hasattr(offset, '__iter__'):
+            offset = [offset]
+        if not (len(offset) == len(self.x.columns)):
+            offset = np.zeros_like(self.x.columns) + offset
+
         # for each col in x
         for i, colname in enumerate(self.x.columns):
             sig = self.x.iloc[:, i]
@@ -61,7 +76,7 @@ class SpectralFilter:
             # value of the derivative of PSD is below threshold
             f_cutoff_idx = int(np.where(
                Pxx_smooth < thresh
-            )[0][0] + offset)
+            )[0][0] + offset[i])
             f_cutoff = f[f_cutoff_idx]
             self.cutoff_frequency.append(f_cutoff)
             self.cutoff_frequency_idx.append(f_cutoff_idx)
@@ -82,9 +97,10 @@ class SpectralFilter:
                               xmin=0, xmax=np.max(f),
                               linestyle='--', color='tab:grey', alpha=0.9,
                               label='Threshold')
-                axs[i].set_ylabel(rf'$Power\ x_{i}$')
+                axs[i].set_ylabel(rf'$Power\ x_{i+1}$', fontsize=18)
                 axs[i].legend()
-                axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                axs[i].set_xlim([-0.1*f_cutoff, 6*f_cutoff])
+                axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$', fontsize=16)
 
         if self.plot:
             plt.show()
@@ -136,6 +152,8 @@ class SpectralFilter:
                 plt.legend()
                 # axs[N-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
                 # axs.set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
+                f_cutoff = self.cutoff_frequency[col]
+                axs[col].set_xlim([-0.1*f_cutoff, 6*f_cutoff])
                 axs[col].set_ylabel(r'$Power$')
                 axs[-1].set_xlabel(r'$Frequency \quad [\frac{rad}{s}]$')
 

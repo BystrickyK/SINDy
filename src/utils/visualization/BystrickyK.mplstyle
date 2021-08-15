@@ -1,5 +1,5 @@
-axes.titlesize : 20
-axes.labelsize : 20
+axes.titlesize : 18
+axes.labelsize : 18
 axes.grid : True
 
 grid.alpha : 0.75
@@ -18,3 +18,5 @@ savefig.bbox : tight
 
 mathtext.fontset : cm
 mathtext.rm : serif
+
+legend.fontsize: large
