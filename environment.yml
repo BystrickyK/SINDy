@@ -14,4 +14,3 @@ dependencies:
   - python-graphviz
   - ffmpeg
   - pytest
-prefix: /home/christoph/anaconda3/envs/SINDy
