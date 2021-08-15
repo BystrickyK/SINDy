@@ -1,0 +1,17 @@
+name: SINDy
+channels:
+  - defaults
+dependencies:
+  - numpy
+  - matplotlib
+  - pandas
+  - scipy
+  - scikit-learn
+  - dask
+  - seaborn
+  - sympy
+  - graphviz
+  - python-graphviz
+  - ffmpeg
+  - pytest
+prefix: /home/christoph/anaconda3/envs/SINDy
