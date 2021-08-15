@@ -1,4 +1,0 @@
-dX1(t) == X3(t)\\
-dX2(t) == X4(t)\\
-dX3(t) == (I_1*u(t) + a_1^2*m_1*u(t) - I_1*b_c*X3(t) + a_1^3*m_1^2*sin(X2(t))*X4(t)^2 - a_1^2*b_c*m_1*X3(t) + a_1*b_1*m_1*cos(X2(t))*X4(t) + a_1^2*g*m_1^2*cos(X2(t))*sin(X2(t)) + I_1*a_1*m_1*sin(X2(t))*X4(t)^2)/(I_1*m_1 + I_1*m_c + a_1^2*m_1^2 - a_1^2*m_1^2*cos(X2(t))^2 + a_1^2*m_1*m_c)\\
-dX4(t) == -(b_1*m_1*X4(t) + b_1*m_c*X4(t) + a_1*g*m_1^2*sin(X2(t)) + a_1*m_1*cos(X2(t))*u(t) + a_1*g*m_1*m_c*sin(X2(t)) + a_1^2*m_1^2*cos(X2(t))*sin(X2(t))*X4(t)^2 - a_1*b_c*m_1*cos(X2(t))*X3(t))/(I_1*m_1 + I_1*m_c + a_1^2*m_1^2 - a_1^2*m_1^2*cos(X2(t))^2 + a_1^2*m_1*m_c)
