@@ -1,0 +1,10 @@
+*.avi
+*.mp4
+*.asv
+*.svg
+*.png
+*.svg
+*/images/
+*/cache/
+/singlePendulumCart/results
+/doublePendulumCart/results
